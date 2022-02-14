@@ -10,7 +10,7 @@ type IError =
 module IError = 
     let public FullMessage(error: IError) =
             match error.Exception with
-            | Some exceptionData -> $"{error.ToString()}\n\nException: #{exceptionData.Message}\n\n{exceptionData.StackTrace}"
+            | Some exceptionData -> $"{error.ToString()}\n\nException: {exceptionData.Message}\n\n{exceptionData.StackTrace}"
             | None -> error.ToString()
     
     
