@@ -3,17 +3,17 @@
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <Title>4A Utility for f#</Title>
+        <Title>4A Utility for F#</Title>
         <Authors>4A Company</Authors>
         <Copyright>4A</Copyright>
         <Company>4A Company</Company>
         <Description>Utilities for extended work with f#. Extensions to the standard C# library implementing Railway-oriented Programming using Result and Option without exceptions.</Description>
-        <PackageVersion>0.0.2</PackageVersion>
+        <PackageVersion>0.0.3</PackageVersion>
         <PackageProjectUrl>https://github.com/4ait/fsharp-FAUtils</PackageProjectUrl>
         <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
         <RepositoryUrl>https://github.com/4ait/fsharp-FAUtils</RepositoryUrl>
         <RepositoryType>Git</RepositoryType>
-        <PackageTags>f#, c#, utils, file, process</PackageTags>
+        <PackageTags>f#, c#, utils, file, process, async</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>
