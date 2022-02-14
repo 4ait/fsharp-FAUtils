@@ -6,6 +6,7 @@ type IError =
     abstract member ToString: unit -> string
     abstract member Exception: unit -> Exception option with get
 
+[<RequireQualifiedAccess>]
 module IError = 
     let public FullMessage(error: IError) =
             match error.Exception with

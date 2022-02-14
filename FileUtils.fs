@@ -2,7 +2,6 @@
                 
 open System
 open System.IO
-open System.IO.Directory.FAEx
 open FAUtils
 open FAUtils.ErrorManagement
 
@@ -40,7 +39,7 @@ type DeleteFilesInDirectoryError =
             | Unknown(ex) -> ex
 
 let rec public DeleteFilesInDirectory(srcPath, pattern) =
-    let enumerationFilesResult = EnumerateFilesWithBlock(srcPath, pattern, (fun file ->
+    let enumerationFilesResult = Directory.FAEx.EnumerateFilesWithBlock(srcPath, pattern, (fun file ->
             File.FAEx.Delete(file)
         ))
     
@@ -50,7 +49,7 @@ let rec public DeleteFilesInDirectory(srcPath, pattern) =
     | Error(Directory.FAEx.PathTooLong(ex)) -> Error(PathTooLong(srcPath, ex))
     | Error(Directory.FAEx.SecurityError(ex)) -> Error(SecurityError(srcPath, ex))
     | Error(Directory.FAEx.UnauthorizedAccess(ex)) -> Error(UnauthorizedAccess(srcPath, ex))
-    | Error(EnumerateFilesWithBlockError.Unknown(ex)) -> Error(Unknown(ex))
+    | Error(Directory.FAEx.EnumerateFilesWithBlockError.Unknown(ex)) -> Error(Unknown(ex))
     | Error(Directory.FAEx.BlockError(error)) -> 
         match error with
             | File.FAEx.FileDeleteError.NotFound(file, ex) -> Error(FileNotFound(file, ex))
@@ -91,7 +90,7 @@ type DeleteDirectoriesInDirectoryError =
             | Unknown(ex) -> ex
 
 let rec public DeleteDirectoriesInDirectory(srcPath, pattern, removeFilesInDirectories, includeSubDirs) =
-    let enumerationDirectoriesResult = EnumerateDirectoriesWithBlock(srcPath, pattern, (fun dir ->
+    let enumerationDirectoriesResult = Directory.FAEx.EnumerateDirectoriesWithBlock(srcPath, pattern, (fun dir ->
             if removeFilesInDirectories then
                 match DeleteFilesInDirectory(dir, "*") with
                 | Error(DeleteFilesInDirectoryError.DirectoryNotFound(srcPath, ex)) ->
@@ -115,10 +114,10 @@ let rec public DeleteDirectoriesInDirectory(srcPath, pattern, removeFilesInDirec
                         | Error error -> Error error
                         | Ok _ ->
                             
-                            match Delete(dir) with
-                            | Error(DirectoryDeleteError.NotFound(tempPath, ex)) ->
+                            match Directory.FAEx.Delete(dir) with
+                            | Error(Directory.FAEx.DirectoryDeleteError.NotFound(tempPath, ex)) ->
                                 Error(DeleteDirectoriesInDirectoryError.DirectoryNotFound(tempPath, ex))
-                            | Error(DirectoryDeleteError.Unknown ex) ->
+                            | Error(Directory.FAEx.DirectoryDeleteError.Unknown ex) ->
                                 Error(DeleteDirectoriesInDirectoryError.Unknown ex)
                             | Ok _ ->
                                 Ok()
@@ -129,19 +128,19 @@ let rec public DeleteDirectoriesInDirectory(srcPath, pattern, removeFilesInDirec
     ))
     
     match enumerationDirectoriesResult with
-    | Error(EnumerateDirectoriesWithBlockError.DirectoryNotFound(ex)) ->
+    | Error(Directory.FAEx.EnumerateDirectoriesWithBlockError.DirectoryNotFound(ex)) ->
         Error(DeleteDirectoriesInDirectoryError.DirectoryNotFound(srcPath, ex))
-    | Error(EnumerateDirectoriesWithBlockError.IOError(ex)) ->
+    | Error(Directory.FAEx.EnumerateDirectoriesWithBlockError.IOError(ex)) ->
         Error(DeleteDirectoriesInDirectoryError.IOError(ex))
-    | Error(EnumerateDirectoriesWithBlockError.PathTooLong(ex)) ->
+    | Error(Directory.FAEx.EnumerateDirectoriesWithBlockError.PathTooLong(ex)) ->
         Error(DeleteDirectoriesInDirectoryError.PathTooLong(srcPath, ex))
-    | Error(EnumerateDirectoriesWithBlockError.SecurityError(ex)) ->
+    | Error(Directory.FAEx.EnumerateDirectoriesWithBlockError.SecurityError(ex)) ->
         Error(DeleteDirectoriesInDirectoryError.SecurityError(srcPath, ex))
-    | Error(EnumerateDirectoriesWithBlockError.UnauthorizedAccess(ex)) ->
+    | Error(Directory.FAEx.EnumerateDirectoriesWithBlockError.UnauthorizedAccess(ex)) ->
         Error(DeleteDirectoriesInDirectoryError.UnauthorizedAccess(srcPath, ex))
-    | Error(EnumerateDirectoriesWithBlockError.Unknown(ex)) ->
+    | Error(Directory.FAEx.EnumerateDirectoriesWithBlockError.Unknown(ex)) ->
         Error(DeleteDirectoriesInDirectoryError.Unknown(ex))
-    | Error(EnumerateDirectoriesWithBlockError.BlockError(error)) ->
+    | Error(Directory.FAEx.EnumerateDirectoriesWithBlockError.BlockError(error)) ->
         Error error
     | Ok _ -> Ok()
 
