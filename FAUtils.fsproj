@@ -7,6 +7,7 @@
         <Authors>4A Company</Authors>
         <Copyright>4A</Copyright>
         <Company>4A Company</Company>
+        <Description>Utilities for extended work with f#. Extensions to the standard C# library implementing Railway-oriented Programming using Result and Option without exceptions.</Description>
     </PropertyGroup>
 
     <ItemGroup>
