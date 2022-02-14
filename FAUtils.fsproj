@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="IError.fs" />
+        <Compile Include="extenstions\System\IO\File.fs" />
+        <Compile Include="extenstions\System\IO\Directory.fs" />
+        <Compile Include="extenstions\System\Diagnostics\Process.fs" />
+        <Compile Include="Async.fs" />
+        <Compile Include="FileUtils.fs" />
+        <Compile Include="example.fs" />
+    </ItemGroup>
+
+</Project>
