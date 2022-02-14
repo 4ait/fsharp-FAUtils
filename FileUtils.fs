@@ -41,9 +41,7 @@ type DeleteFilesInDirectoryError =
 
 let rec public DeleteFilesInDirectory(srcPath, pattern) =
     let enumerationFilesResult = EnumerateFilesWithBlock(srcPath, pattern, (fun file ->
-            let tempPath = Path.Combine(srcPath, file)
-            
-            File.FAEx.Delete(tempPath)
+            File.FAEx.Delete(file)
         ))
     
     match enumerationFilesResult with
@@ -94,10 +92,8 @@ type DeleteDirectoriesInDirectoryError =
 
 let rec public DeleteDirectoriesInDirectory(srcPath, pattern, removeFilesInDirectories, includeSubDirs) =
     let enumerationDirectoriesResult = EnumerateDirectoriesWithBlock(srcPath, pattern, (fun dir ->
-            let tempPath = Path.Combine(srcPath, dir)
-            
             if removeFilesInDirectories then
-                match DeleteFilesInDirectory(tempPath, "*") with
+                match DeleteFilesInDirectory(dir, "*") with
                 | Error(DeleteFilesInDirectoryError.DirectoryNotFound(srcPath, ex)) ->
                     Error(DeleteDirectoriesInDirectoryError.DirectoryNotFound(srcPath, ex))
                 | Error(DeleteFilesInDirectoryError.IOError(ex)) ->
@@ -119,7 +115,7 @@ let rec public DeleteDirectoriesInDirectory(srcPath, pattern, removeFilesInDirec
                         | Error error -> Error error
                         | Ok _ ->
                             
-                            match Delete(tempPath) with
+                            match Delete(dir) with
                             | Error(DirectoryDeleteError.NotFound(tempPath, ex)) ->
                                 Error(DeleteDirectoriesInDirectoryError.DirectoryNotFound(tempPath, ex))
                             | Error(DirectoryDeleteError.Unknown ex) ->

@@ -66,7 +66,7 @@ let public RunCommandAsync(cmd, workingDir) =
         | Error error -> return Error error
     }
     
-let public RunCommandAsyncCancellable(cmd, workingDir, token) =
+let public RunCommandCancellableAsync(cmd, workingDir, token) =
     task {
         match RunCommand(cmd, workingDir) with
         | Ok proc ->
