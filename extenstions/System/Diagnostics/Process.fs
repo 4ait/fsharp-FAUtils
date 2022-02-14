@@ -8,6 +8,35 @@ open FAUtils.ErrorManagement
 
 [<RequireQualifiedAccess>]
 module FAEx =
+    
+    type StartError =
+        | InvalidOperation of ex: Exception option
+        | Unknown of ex: Exception option
+        
+        interface IError with
+            member this.Exception =
+                match this with
+                | InvalidOperation ex -> ex
+                | Unknown(ex) -> ex
+                
+            member this.ToString() =
+                match this with
+                | InvalidOperation ex ->
+                    match ex with
+                    | Some ex -> ex.Message
+                    | None -> "Operation is invalid"
+                | Unknown ex ->
+                    match ex with
+                    | Some ex -> ex.Message
+                    | None -> "Unknown error"
+    
+    let public Start(proc: ProcessStartInfo) =
+       try
+            Ok (proc |> Process.Start)
+       with
+       | :? InvalidOperationException as ex -> Error(InvalidOperation(Some ex))
+       | ex -> Error(Unknown(Some(ex)))
+    
     type RunCommandError =
         | CommandEmpty of cmd: string
         | InvalidOperation of ex: Exception option
@@ -54,11 +83,10 @@ module FAEx =
                                 WorkingDirectory = workingDir
                             )
                
-               try
-                    Ok (proc |> Process.Start)
-               with
-               | :? InvalidOperationException as ex -> Error(InvalidOperation(Some ex))
-               | ex -> Error(Unknown(Some(ex)))
+               match (proc |> Start) with
+               | Error(StartError.InvalidOperation(ex)) -> Error(InvalidOperation(ex))
+               | Error(StartError.Unknown(ex)) -> Error(Unknown(ex))
+               | Ok proc -> Ok proc
 
     let public RunCommandAsync(cmd, workingDir) =
         task {

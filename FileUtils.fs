@@ -110,7 +110,7 @@ let rec public DeleteDirectoriesInDirectory(srcPath, pattern, removeFilesInDirec
                 | Ok _ -> 
             
                     if includeSubDirs then
-                        match DeleteDirectoriesInDirectory(srcPath, pattern, removeFilesInDirectories, includeSubDirs) with
+                        match DeleteDirectoriesInDirectory(dir, "*", removeFilesInDirectories, includeSubDirs) with
                         | Error error -> Error error
                         | Ok _ ->
                             
