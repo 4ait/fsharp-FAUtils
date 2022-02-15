@@ -2,6 +2,7 @@
 module System.IO.File
 
 open System
+open FAUtils.Async
 open FAUtils.ErrorManagement
 
 [<RequireQualifiedAccess>]
@@ -26,7 +27,11 @@ module FAEx =
 
     let public Delete file =
         try
-            System.IO.File.Delete(file)
+            File.Delete(file)
             Ok()
         with
-        | :? System.IO.DirectoryNotFoundException as ex -> Error(NotFound(file, Some ex))
+        | :? DirectoryNotFoundException as ex -> Error(NotFound(file, Some ex))
+        | ex -> Error(Unknown(Some ex))
+    
+    let public DeleteAsync file =
+        BlockingTask.Run(fun () -> Delete(file))

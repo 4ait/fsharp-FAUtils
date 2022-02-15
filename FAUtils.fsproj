@@ -18,10 +18,10 @@
 
     <ItemGroup>
         <Compile Include="IError.fs" />
+        <Compile Include="Async.fs" />
         <Compile Include="extenstions\System\IO\File.fs" />
         <Compile Include="extenstions\System\IO\Directory.fs" />
         <Compile Include="extenstions\System\Diagnostics\Process.fs" />
-        <Compile Include="Async.fs" />
         <Compile Include="FileUtils.fs" />
     </ItemGroup>
 

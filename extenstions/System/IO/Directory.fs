@@ -5,7 +5,9 @@ open System
 open System.Collections.Generic
 open System.IO
 open System.Security
+open FAUtils.Async
 open FAUtils.ErrorManagement
+open FSharp.Control
 
 [<RequireQualifiedAccess>]
 module FAEx =
@@ -35,6 +37,9 @@ module FAEx =
         with
         | :? DirectoryNotFoundException as ex -> Error(NotFound(dirPath, Some ex))
         | ex -> Error(Unknown(Some ex))
+    
+    let public DeleteAsync dirPath =
+        BlockingTask.Run(fun () -> Delete(dirPath))
 
     type EnumerateFilesWithBlockError<'BlockError when 'BlockError :> IError> =
         | DirectoryNotFound of ex: Exception option
@@ -344,6 +349,70 @@ module FAEx =
             | Error error -> yield Error error
         }
 
+    let public EnumerateFilesAsync(srcPath, pattern) =
+        seq {
+            let mutable moveNextExists = true
+            let mutable enumerator: IEnumerator<string> = null
+            
+            let enumeration =
+                task {
+                    let! enumeration =
+                        BlockingTask.Run(fun () ->
+                            safeEnumerateFileBlock(fun () ->
+                                Directory.EnumerateFiles(srcPath, pattern)
+                            )
+                        )
+                                         
+                    match enumeration with
+                    | Ok enumeration ->
+                        enumerator <- enumeration.GetEnumerator()
+                        
+                        let! moveNextRes =
+                            BlockingTask.Run(fun () -> safeEnumerateFileBlock(fun () -> enumerator.MoveNext()))
+                        
+                        match moveNextRes with
+                        | Ok true -> return Ok(Some enumerator.Current)
+                        | Ok false ->
+                            moveNextExists <- false
+                            return Ok None
+                        | Error error ->
+                            moveNextExists <- false
+                            return Error error
+                        
+                    | Error error ->
+                        moveNextExists <- false
+                        return Error error
+                }
+            
+            yield enumeration
+            
+            let mutable lastTaskExecuted = true
+            
+            while moveNextExists do
+                if not lastTaskExecuted then
+                    failwith "Previous task is not executed. Please, wait task before iterate next element"
+                
+                let enumeration =
+                    task {
+                        lastTaskExecuted <- true
+                        
+                        let! moveNextRes =
+                                BlockingTask.Run(fun () -> safeEnumerateFileBlock(fun () -> enumerator.MoveNext()))
+                        
+                        match moveNextRes with
+                        | Ok true -> return Ok(Some enumerator.Current)
+                        | Ok false ->
+                            moveNextExists <- false
+                            return Ok None
+                        | Error error ->
+                            moveNextExists <- false
+                            return Error error
+                    }
+                
+                lastTaskExecuted <- false
+                yield enumeration
+        }
+    
     // Returns the names of subdirectories (including their paths) in the specified directory.
     let public GetDirectories(srcPath, pattern) =
         let mutable dirList = []
