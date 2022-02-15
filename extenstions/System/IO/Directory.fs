@@ -5,6 +5,7 @@ open System
 open System.Collections.Generic
 open System.IO
 open System.Security
+open System.Threading.Tasks
 open FAUtils.Safe
 open FAUtils.Async
 open FAUtils.ErrorManagement
@@ -215,6 +216,21 @@ type FAEx =
         | :? UnauthorizedAccessException as ex -> Error(FAErr.EnumerateFilesError.UnauthorizedAccess(Some ex))
         | ex -> Error(FAErr.EnumerateFilesError.Unknown(Some ex))
 
+    static member private safeEnumerateFilesBlockAsync(block: unit -> Task<'Ok>): Task<Result<'Ok, FAErr.EnumerateFilesError>> =
+        task {
+            try
+                let! res = block()
+                return Ok(res)
+            with
+            | :? DirectoryNotFoundException as ex -> return  Error(FAErr.EnumerateFilesError.DirectoryNotFound(Some ex))
+            | :? PathTooLongException as ex -> return  Error(FAErr.EnumerateFilesError.PathTooLong(Some ex))
+            | :? IOException as ex -> return  Error(FAErr.EnumerateFilesError.IOError(Some ex))
+            | :? SecurityException as ex -> return  Error(FAErr.EnumerateFilesError.SecurityError(Some ex))
+            | :? UnauthorizedAccessException as ex -> return  Error(FAErr.EnumerateFilesError.UnauthorizedAccess(Some ex))
+            | ex -> return  Error(FAErr.EnumerateFilesError.Unknown(Some ex))
+        }
+        
+    
     static member private enumerateNextFileWithBlock(
                                   enumerator: IEnumerator<string>,
                                   block: string -> Result<'BlockOk, 'BlockError>
@@ -271,6 +287,21 @@ type FAEx =
         | :? UnauthorizedAccessException as ex -> Error(FAErr.EnumerateDirectoriesError.UnauthorizedAccess(Some ex))
         | ex -> Error(FAErr.EnumerateDirectoriesError.Unknown(Some ex))
 
+    static member private safeEnumerateDirectoriesBlockAsync(block: unit -> Task<'Ok>): Task<Result<'Ok, FAErr.EnumerateDirectoriesError>> =
+        task {
+            try
+                let! res = block()
+                
+                return Ok(res)
+            with
+            | :? DirectoryNotFoundException as ex -> return Error(FAErr.EnumerateDirectoriesError.DirectoryNotFound(Some ex))
+            | :? PathTooLongException as ex -> return Error(FAErr.EnumerateDirectoriesError.PathTooLong(Some ex))
+            | :? IOException as ex -> return Error(FAErr.EnumerateDirectoriesError.IOError(Some ex))
+            | :? SecurityException as ex -> return Error(FAErr.EnumerateDirectoriesError.SecurityError(Some ex))
+            | :? UnauthorizedAccessException as ex -> return Error(FAErr.EnumerateDirectoriesError.UnauthorizedAccess(Some ex))
+            | ex -> return Error(FAErr.EnumerateDirectoriesError.Unknown(Some ex))
+        }
+    
     static member private enumerateNextDirectoryWithBlock(enumerator: IEnumerator<string>,
                               block: string -> Result<'BlockOk, 'BlockError>): Result<unit, FAErr.EnumerateDirectoriesWithBlockError<'BlockError>> =
         
@@ -336,15 +367,14 @@ type FAEx =
     static member EnumerateDirectoriesAsync(srcPath, pattern) =
         SafeEnumeration.EnumerateWithErrorAsync(
                                                    (fun () ->
-                                                        BlockingTask.Run(fun () ->
-                                                                FAEx.safeEnumerateDirectoriesBlock(fun () ->
-                                                                    Directory.EnumerateDirectories(srcPath, pattern)
-                                                                )
+                                                        FAEx.safeEnumerateDirectoriesBlockAsync(fun () ->
+                                                            BlockingTask.Run(fun () ->
+                                                                Directory.EnumerateFiles(srcPath, pattern))
                                                         )
                                                    ),
                                                    (fun moveNext ->
-                                                       BlockingTask.Run(fun () ->
-                                                           FAEx.safeEnumerateDirectoriesBlock(moveNext)
+                                                       FAEx.safeEnumerateDirectoriesBlockAsync(fun () ->
+                                                           BlockingTask.Run(moveNext)
                                                        )
                                                    )
                                                )
@@ -352,15 +382,15 @@ type FAEx =
     static member EnumerateDirectoriesAsync(srcPath) =
         SafeEnumeration.EnumerateWithErrorAsync(
                                                    (fun () ->
-                                                        BlockingTask.Run(fun () ->
-                                                                FAEx.safeEnumerateDirectoriesBlock(fun () ->
-                                                                    Directory.EnumerateDirectories(srcPath)
-                                                                )
+                                                        FAEx.safeEnumerateDirectoriesBlockAsync(fun () ->
+                                                            BlockingTask.Run(fun () ->
+                                                                Directory.EnumerateFiles(srcPath)
+                                                            )
                                                         )
                                                    ),
                                                    (fun moveNext ->
-                                                       BlockingTask.Run(fun () ->
-                                                           FAEx.safeEnumerateDirectoriesBlock(moveNext)
+                                                       FAEx.safeEnumerateDirectoriesBlockAsync(fun () ->
+                                                           BlockingTask.Run(moveNext)
                                                        )
                                                    )
                                                )
@@ -384,15 +414,15 @@ type FAEx =
     static member EnumerateFilesAsync(srcPath, pattern) =
         SafeEnumeration.EnumerateWithErrorAsync(
                                                    (fun () ->
-                                                        BlockingTask.Run(fun () ->
-                                                                FAEx.safeEnumerateFilesBlock(fun () ->
-                                                                    Directory.EnumerateFiles(srcPath, pattern)
-                                                                )
+                                                        FAEx.safeEnumerateFilesBlockAsync(fun () ->
+                                                            BlockingTask.Run(fun () ->
+                                                                Directory.EnumerateFiles(srcPath, pattern)
+                                                            )
                                                         )
                                                    ),
                                                    (fun moveNext ->
-                                                       BlockingTask.Run(fun () ->
-                                                           FAEx.safeEnumerateFilesBlock(moveNext)
+                                                       FAEx.safeEnumerateFilesBlockAsync(fun () ->
+                                                           BlockingTask.Run(moveNext)
                                                        )
                                                    )
                                                )
@@ -400,15 +430,15 @@ type FAEx =
     static member EnumerateFilesAsync(srcPath) =
         SafeEnumeration.EnumerateWithErrorAsync(
                                                    (fun () ->
-                                                        BlockingTask.Run(fun () ->
-                                                                FAEx.safeEnumerateFilesBlock(fun () ->
-                                                                    Directory.EnumerateFiles(srcPath)
-                                                                )
+                                                        FAEx.safeEnumerateFilesBlockAsync(fun () ->
+                                                            BlockingTask.Run(fun () ->
+                                                                Directory.EnumerateFiles(srcPath)
+                                                            )
                                                         )
                                                    ),
                                                    (fun moveNext ->
-                                                       BlockingTask.Run(fun () ->
-                                                           FAEx.safeEnumerateFilesBlock(moveNext)
+                                                       FAEx.safeEnumerateFilesBlockAsync(fun () ->
+                                                           BlockingTask.Run(moveNext)
                                                        )
                                                    )
                                                )

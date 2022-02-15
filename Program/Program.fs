@@ -4,6 +4,7 @@
 open System.IO
 open System.Threading.Tasks
 open FAUtils.ErrorManagement
+open FAUtils.Utils
 
 let dirEnum = Directory.FAEx.EnumerateFiles("C:/Windows")
 
