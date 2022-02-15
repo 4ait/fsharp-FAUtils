@@ -203,7 +203,7 @@ type FAEx =
             | ex -> return Error(FAErr.DirectoryDeleteError.Unknown(Some ex))
         }
         
-    static member private safeEnumerateFileBlock(block: unit -> 'Ok): Result<'Ok, FAErr.EnumerateFilesError> =
+    static member private safeEnumerateFilesBlock(block: unit -> 'Ok): Result<'Ok, FAErr.EnumerateFilesError> =
         try
             Ok(block())
         with
@@ -219,7 +219,7 @@ type FAEx =
                                   block: string -> Result<'BlockOk, 'BlockError>
                               ): Result<unit, FAErr.EnumerateFilesWithBlockError<'BlockError>> =
         
-        match FAEx.safeEnumerateFileBlock(fun () -> enumerator.MoveNext()) with
+        match FAEx.safeEnumerateFilesBlock(fun () -> enumerator.MoveNext()) with
          //enumeration ends when move next returns false
         | Ok false -> Ok()
         
@@ -241,7 +241,7 @@ type FAEx =
             Error(FAErr.EnumerateFilesWithBlockError.Unknown(ex))
 
     static member EnumerateFilesWithBlock(srcPath, pattern, block: string -> Result<unit, 'BlockError>) =
-        let enumeration = FAEx.safeEnumerateFileBlock(fun () -> Directory.EnumerateFiles(srcPath, pattern))
+        let enumeration = FAEx.safeEnumerateFilesBlock(fun () -> Directory.EnumerateFiles(srcPath, pattern))
         
         match enumeration with
         | Ok enumeration ->
@@ -335,10 +335,10 @@ type FAEx =
                 
             | Error error -> yield Error error
         }
-            
-    static member EnumerateFiles(srcPath, pattern) =
+    
+    static member private enumerateFilesWithStaticEnumerator(enumGetter: unit -> IEnumerable<string>) =
         seq {
-            let enumeration = FAEx.safeEnumerateFileBlock(fun () -> Directory.EnumerateFiles(srcPath, pattern))
+            let enumeration = FAEx.safeEnumerateFilesBlock(enumGetter)
             
             match enumeration with
             | Ok enumeration ->
@@ -347,7 +347,7 @@ type FAEx =
                 let mutable moveNextExists = true
                 
                 while moveNextExists do
-                    match FAEx.safeEnumerateFileBlock(fun () -> enumerator.MoveNext()) with
+                    match FAEx.safeEnumerateFilesBlock(fun () -> enumerator.MoveNext()) with
                     | Ok true -> yield Ok enumerator.Current
                     | Ok false -> moveNextExists <- false
                     | Error error ->
@@ -356,7 +356,13 @@ type FAEx =
                 
             | Error error -> yield Error error
         }
+            
+    static member EnumerateFiles(srcPath, pattern) =
+        FAEx.enumerateFilesWithStaticEnumerator(fun () -> Directory.EnumerateFiles(srcPath, pattern))
 
+    static member EnumerateFiles(srcPath) =
+        FAEx.enumerateFilesWithStaticEnumerator(fun () -> Directory.EnumerateFiles(srcPath))
+    
     static member EnumerateFilesAsync(srcPath, pattern) =
         seq {
             let mutable moveNextExists = true
@@ -366,7 +372,7 @@ type FAEx =
                 task {
                     let! enumeration =
                         BlockingTask.Run(fun () ->
-                            FAEx.safeEnumerateFileBlock(fun () ->
+                            FAEx.safeEnumerateFilesBlock(fun () ->
                                 Directory.EnumerateFiles(srcPath, pattern)
                             )
                         )
@@ -376,7 +382,7 @@ type FAEx =
                         enumerator <- enumeration.GetEnumerator()
                         
                         let! moveNextRes =
-                            BlockingTask.Run(fun () -> FAEx.safeEnumerateFileBlock(fun () -> enumerator.MoveNext()))
+                            BlockingTask.Run(fun () -> FAEx.safeEnumerateFilesBlock(fun () -> enumerator.MoveNext()))
                         
                         match moveNextRes with
                         | Ok true -> return Ok(Some enumerator.Current)
@@ -405,7 +411,7 @@ type FAEx =
                         lastTaskExecuted <- true
                         
                         let! moveNextRes =
-                                BlockingTask.Run(fun () -> FAEx.safeEnumerateFileBlock(fun () -> enumerator.MoveNext()))
+                                BlockingTask.Run(fun () -> FAEx.safeEnumerateFilesBlock(fun () -> enumerator.MoveNext()))
                         
                         match moveNextRes with
                         | Ok true -> return Ok(Some enumerator.Current)

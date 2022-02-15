@@ -97,7 +97,7 @@ type FAEx =
             | Error error -> return Error error
         }
         
-    static member RunCommandCancellableAsync(cmd, workingDir, token) =
+    static member RunCommandAsync(cmd, workingDir, token) =
         task {
             match FAEx.RunCommand(cmd, workingDir) with
             | Ok proc ->
