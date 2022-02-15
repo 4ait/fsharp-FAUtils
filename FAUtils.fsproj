@@ -23,7 +23,7 @@
         <Compile Include="extenstions\System\IO\File.fs" />
         <Compile Include="extenstions\System\IO\Directory.fs" />
         <Compile Include="extenstions\System\Diagnostics\Process.fs" />
-        <Compile Include="FileUtils.fs" />
+        <Compile Include="Utils.fs" />
     </ItemGroup>
 
 </Project>

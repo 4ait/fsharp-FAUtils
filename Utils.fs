@@ -1,4 +1,4 @@
-﻿module FAUtils
+﻿module FAUtils.Utils
                 
 open System
 open System.IO
