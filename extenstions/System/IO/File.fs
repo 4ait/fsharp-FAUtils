@@ -6,7 +6,7 @@ open FAUtils.Async
 open FAUtils.ErrorManagement
 
 [<RequireQualifiedAccess>]
-module FAEx =
+module FAErr =
     type FileDeleteError =
         | NotFound of filePath: string * ex: Exception option
         | Unknown of ex: Exception option
@@ -25,13 +25,21 @@ module FAEx =
                     | Some ex -> ex.Message
                     | None -> "Unknown error"
 
-    let public Delete file =
+type FAEx =
+    static member Delete file =
         try
             File.Delete(file)
             Ok()
         with
-        | :? DirectoryNotFoundException as ex -> Error(NotFound(file, Some ex))
-        | ex -> Error(Unknown(Some ex))
+        | :? DirectoryNotFoundException as ex -> Error(FAErr.FileDeleteError.NotFound(file, Some ex))
+        | ex -> Error(FAErr.FileDeleteError.Unknown(Some ex))
     
-    let public DeleteAsync file =
-        BlockingTask.Run(fun () -> Delete(file))
+    static member DeleteAsync file =
+        task {
+            try
+                do! BlockingTask.Run(fun () -> File.Delete(file))
+                return Ok()
+            with
+            | :? DirectoryNotFoundException as ex -> return Error(FAErr.FileDeleteError.NotFound(file, Some ex))
+            | ex -> return Error(FAErr.FileDeleteError.Unknown(Some ex))
+        }

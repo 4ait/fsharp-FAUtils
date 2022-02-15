@@ -44,13 +44,13 @@ let rec public DeleteFilesInDirectory(srcPath, pattern) =
         ))
     
     match enumerationFilesResult with
-    | Error(Directory.FAEx.DirectoryNotFound(ex)) -> Error(DirectoryNotFound(srcPath, ex))
-    | Error(Directory.FAEx.IOError(ex)) -> Error(IOError(ex))
-    | Error(Directory.FAEx.PathTooLong(ex)) -> Error(PathTooLong(srcPath, ex))
-    | Error(Directory.FAEx.SecurityError(ex)) -> Error(SecurityError(srcPath, ex))
-    | Error(Directory.FAEx.UnauthorizedAccess(ex)) -> Error(UnauthorizedAccess(srcPath, ex))
-    | Error(Directory.FAEx.EnumerateFilesWithBlockError.Unknown(ex)) -> Error(Unknown(ex))
-    | Error(Directory.FAEx.BlockError(error)) -> 
+    | Error(Directory.FAErr.DirectoryNotFound(ex)) -> Error(DirectoryNotFound(srcPath, ex))
+    | Error(Directory.FAErr.IOError(ex)) -> Error(IOError(ex))
+    | Error(Directory.FAErr.PathTooLong(ex)) -> Error(PathTooLong(srcPath, ex))
+    | Error(Directory.FAErr.SecurityError(ex)) -> Error(SecurityError(srcPath, ex))
+    | Error(Directory.FAErr.UnauthorizedAccess(ex)) -> Error(UnauthorizedAccess(srcPath, ex))
+    | Error(Directory.FAErr.EnumerateFilesWithBlockError.Unknown(ex)) -> Error(Unknown(ex))
+    | Error(Directory.FAErr.BlockError(error)) -> 
         match error with
             | File.FAEx.FileDeleteError.NotFound(file, ex) -> Error(FileNotFound(file, ex))
             | File.FAEx.FileDeleteError.Unknown ex -> Error(Unknown(ex))
@@ -115,9 +115,9 @@ let rec public DeleteDirectoriesInDirectory(srcPath, pattern, deleteFilesInDirec
                         | Ok _ ->
                             
                             match Directory.FAEx.Delete(dir) with
-                            | Error(Directory.FAEx.DirectoryDeleteError.NotFound(tempPath, ex)) ->
+                            | Error(Directory.FAErr.DirectoryDeleteError.NotFound(tempPath, ex)) ->
                                 Error(DeleteDirectoriesInDirectoryError.DirectoryNotFound(tempPath, ex))
-                            | Error(Directory.FAEx.DirectoryDeleteError.Unknown ex) ->
+                            | Error(Directory.FAErr.DirectoryDeleteError.Unknown ex) ->
                                 Error(DeleteDirectoriesInDirectoryError.Unknown ex)
                             | Ok _ ->
                                 Ok()
@@ -128,19 +128,19 @@ let rec public DeleteDirectoriesInDirectory(srcPath, pattern, deleteFilesInDirec
     ))
     
     match enumerationDirectoriesResult with
-    | Error(Directory.FAEx.EnumerateDirectoriesWithBlockError.DirectoryNotFound(ex)) ->
+    | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.DirectoryNotFound(ex)) ->
         Error(DeleteDirectoriesInDirectoryError.DirectoryNotFound(srcPath, ex))
-    | Error(Directory.FAEx.EnumerateDirectoriesWithBlockError.IOError(ex)) ->
+    | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.IOError(ex)) ->
         Error(DeleteDirectoriesInDirectoryError.IOError(ex))
-    | Error(Directory.FAEx.EnumerateDirectoriesWithBlockError.PathTooLong(ex)) ->
+    | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.PathTooLong(ex)) ->
         Error(DeleteDirectoriesInDirectoryError.PathTooLong(srcPath, ex))
-    | Error(Directory.FAEx.EnumerateDirectoriesWithBlockError.SecurityError(ex)) ->
+    | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.SecurityError(ex)) ->
         Error(DeleteDirectoriesInDirectoryError.SecurityError(srcPath, ex))
-    | Error(Directory.FAEx.EnumerateDirectoriesWithBlockError.UnauthorizedAccess(ex)) ->
+    | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.UnauthorizedAccess(ex)) ->
         Error(DeleteDirectoriesInDirectoryError.UnauthorizedAccess(srcPath, ex))
-    | Error(Directory.FAEx.EnumerateDirectoriesWithBlockError.Unknown(ex)) ->
+    | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.Unknown(ex)) ->
         Error(DeleteDirectoriesInDirectoryError.Unknown(ex))
-    | Error(Directory.FAEx.EnumerateDirectoriesWithBlockError.BlockError(error)) ->
+    | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.BlockError(error)) ->
         Error error
     | Ok _ -> Ok()
 

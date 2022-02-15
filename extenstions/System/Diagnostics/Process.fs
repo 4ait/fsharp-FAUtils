@@ -7,7 +7,7 @@ open System.Diagnostics
 open FAUtils.ErrorManagement
 
 [<RequireQualifiedAccess>]
-module FAEx =
+module FAErr =
     
     type StartError =
         | InvalidOperation of ex: Exception option
@@ -29,13 +29,6 @@ module FAEx =
                     match ex with
                     | Some ex -> ex.Message
                     | None -> "Unknown error"
-    
-    let public Start(proc: ProcessStartInfo) =
-       try
-            Ok (proc |> Process.Start)
-       with
-       | :? InvalidOperationException as ex -> Error(InvalidOperation(Some ex))
-       | ex -> Error(Unknown(Some(ex)))
     
     type RunCommandError =
         | CommandEmpty of cmd: string
@@ -61,14 +54,22 @@ module FAEx =
                     | Some ex -> ex.Message
                     | None -> "Unknown error"
 
-    let public RunCommand(cmd: string, workingDir: string) =
+type FAEx =
+    static member Start(proc: ProcessStartInfo) =
+       try
+            Ok (proc |> Process.Start)
+       with
+       | :? InvalidOperationException as ex -> Error(FAErr.StartError.InvalidOperation(Some ex))
+       | ex -> Error(FAErr.StartError.Unknown(Some(ex)))
+    
+    static member RunCommand(cmd: string, workingDir: string) =
        if cmd.Length = 0 then
-           Error(CommandEmpty(cmd))
+           Error(FAErr.RunCommandError.CommandEmpty(cmd))
        else    
            let split = cmd.Split(" ", StringSplitOptions.RemoveEmptyEntries) |> Array.map (fun e -> e.Trim())
                          
            if split.Length = 0 then
-               Error(CommandEmpty(cmd))
+               Error(FAErr.RunCommandError.CommandEmpty(cmd))
            else                
                let cmd = split.First()
                
@@ -83,27 +84,25 @@ module FAEx =
                                 WorkingDirectory = workingDir
                             )
                
-               match (proc |> Start) with
-               | Error(StartError.InvalidOperation(ex)) -> Error(InvalidOperation(ex))
-               | Error(StartError.Unknown(ex)) -> Error(Unknown(ex))
+               match (proc |> FAEx.Start) with
+               | Error(FAErr.StartError.InvalidOperation(ex)) -> Error(FAErr.RunCommandError.InvalidOperation(ex))
+               | Error(FAErr.StartError.Unknown(ex)) -> Error(FAErr.RunCommandError.Unknown(ex))
                | Ok proc -> Ok proc
-
-    let public RunCommandAsync(cmd, workingDir) =
+    static member RunCommandAsync(cmd, workingDir) =
         task {
-            match RunCommand(cmd, workingDir) with
+            match FAEx.RunCommand(cmd, workingDir) with
             | Ok proc ->
                 do! proc.WaitForExitAsync()
                 return Ok proc
             | Error error -> return Error error
         }
         
-    let public RunCommandCancellableAsync(cmd, workingDir, token) =
+    static member RunCommandCancellableAsync(cmd, workingDir, token) =
         task {
-            match RunCommand(cmd, workingDir) with
+            match FAEx.RunCommand(cmd, workingDir) with
             | Ok proc ->
                 do! proc.WaitForExitAsync(token)
                 return Ok proc
             | Error error -> return Error error
-        }       
-           
+        } 
        

@@ -10,7 +10,7 @@ open FAUtils.ErrorManagement
 open FSharp.Control
 
 [<RequireQualifiedAccess>]
-module FAEx =
+module FAErr =
     type DirectoryDeleteError =
         | NotFound of dirPath: string * ex: Exception option
         | Unknown of ex: Exception option
@@ -28,19 +28,7 @@ module FAEx =
                     match ex with
                     | Some ex -> ex.Message
                     | None -> "Unknown error"
-
-    let public Delete dirPath =
-        
-        try
-            Directory.Delete(dirPath)
-            Ok()
-        with
-        | :? DirectoryNotFoundException as ex -> Error(NotFound(dirPath, Some ex))
-        | ex -> Error(Unknown(Some ex))
     
-    let public DeleteAsync dirPath =
-        BlockingTask.Run(fun () -> Delete(dirPath))
-
     type EnumerateFilesWithBlockError<'BlockError when 'BlockError :> IError> =
         | DirectoryNotFound of ex: Exception option
         | IOError of ex: Exception option
@@ -73,7 +61,6 @@ module FAEx =
                     match ex with
                     | Some ex -> ex.Message
                     | None -> "Unknown error"
-        
     type EnumerateFilesError =
         | DirectoryNotFound of ex: Exception option
         | IOError of ex: Exception option
@@ -103,61 +90,7 @@ module FAEx =
                     match ex with
                     | Some ex -> ex.Message
                     | None -> "Unknown error"
-        
-    let private safeEnumerateFileBlock(block: unit -> 'Ok): Result<'Ok, EnumerateFilesError> =
-        try
-            Ok(block())
-        with
-        | :? DirectoryNotFoundException as ex -> Error(DirectoryNotFound(Some ex))
-        | :? PathTooLongException as ex -> Error(PathTooLong(Some ex))
-        | :? IOException as ex -> Error(IOError(Some ex))
-        | :? SecurityException as ex -> Error(SecurityError(Some ex))
-        | :? UnauthorizedAccessException as ex -> Error(UnauthorizedAccess(Some ex))
-        | ex -> Error(Unknown(Some ex))
-
-    let rec private enumerateNextFileWithBlock(enumerator: IEnumerator<string>,
-                              block: string -> Result<'BlockOk, 'BlockError>): Result<unit, EnumerateFilesWithBlockError<'BlockError>> =
-        
-        match safeEnumerateFileBlock(fun () -> enumerator.MoveNext()) with
-         //enumeration ends when move next returns false
-        | Ok false -> Ok()
-        
-        | Ok true ->
-            match block(enumerator.Current) with
-            | Ok _ -> enumerateNextFileWithBlock(enumerator, block)
-            | Error blockError -> Error(BlockError(blockError))
-        | Error(EnumerateFilesError.DirectoryNotFound(ex)) ->
-            Error(EnumerateFilesWithBlockError.DirectoryNotFound(ex))
-        | Error(EnumerateFilesError.IOError(ex)) ->
-            Error(EnumerateFilesWithBlockError.IOError(ex))
-        | Error(EnumerateFilesError.PathTooLong(ex)) ->
-            Error(EnumerateFilesWithBlockError.PathTooLong(ex))
-        | Error(EnumerateFilesError.SecurityError(ex)) ->
-            Error(EnumerateFilesWithBlockError.SecurityError(ex))
-        | Error(EnumerateFilesError.UnauthorizedAccess(ex)) ->
-            Error(EnumerateFilesWithBlockError.UnauthorizedAccess(ex))
-        | Error(EnumerateFilesError.Unknown(ex)) ->
-            Error(EnumerateFilesWithBlockError.Unknown(ex))
-
-    let public EnumerateFilesWithBlock(srcPath, pattern, block: string -> Result<unit, 'BlockError>) =
-        let enumeration = safeEnumerateFileBlock(fun () -> Directory.EnumerateFiles(srcPath, pattern))
-        
-        match enumeration with
-        | Ok enumeration ->
-            enumerateNextFileWithBlock(enumeration.GetEnumerator(), block)
-        | Error(EnumerateFilesError.DirectoryNotFound(ex)) ->
-            Error(EnumerateFilesWithBlockError.DirectoryNotFound(ex))
-        | Error(EnumerateFilesError.IOError(ex)) ->
-            Error(EnumerateFilesWithBlockError.IOError(ex))
-        | Error(EnumerateFilesError.PathTooLong(ex)) ->
-            Error(EnumerateFilesWithBlockError.PathTooLong(ex))
-        | Error(EnumerateFilesError.SecurityError(ex)) ->
-            Error(EnumerateFilesWithBlockError.SecurityError(ex))
-        | Error(EnumerateFilesError.UnauthorizedAccess(ex)) ->
-            Error(EnumerateFilesWithBlockError.UnauthorizedAccess(ex))
-        | Error(EnumerateFilesError.Unknown(ex)) ->
-            Error(EnumerateFilesWithBlockError.Unknown(ex))
-
+                    
     type EnumerateDirectoriesWithBlockError<'BlockError when 'BlockError :> IError> =
         | DirectoryNotFound of ex: Exception option
         | IOError of ex: Exception option
@@ -220,63 +153,7 @@ module FAEx =
                     match ex with
                     | Some ex -> ex.Message
                     | None -> "Unknown error"
-        
-    let private safeEnumerateDirectoryBlock(block: unit -> 'Ok): Result<'Ok, EnumerateDirectoriesError> =
-        try
-            Ok(block())
-        with
-        | :? DirectoryNotFoundException as ex -> Error(EnumerateDirectoriesError.DirectoryNotFound(Some ex))
-        | :? PathTooLongException as ex -> Error(EnumerateDirectoriesError.PathTooLong(Some ex))
-        | :? IOException as ex -> Error(EnumerateDirectoriesError.IOError(Some ex))
-        | :? SecurityException as ex -> Error(EnumerateDirectoriesError.SecurityError(Some ex))
-        | :? UnauthorizedAccessException as ex -> Error(EnumerateDirectoriesError.UnauthorizedAccess(Some ex))
-        | ex -> Error(EnumerateDirectoriesError.Unknown(Some ex))
-
-    let rec private enumerateNextDirectoryWithBlock(enumerator: IEnumerator<string>,
-                              block: string -> Result<'BlockOk, 'BlockError>): Result<unit, EnumerateDirectoriesWithBlockError<'BlockError>> =
-        
-       
-        match safeEnumerateDirectoryBlock(fun () -> enumerator.MoveNext()) with
-        //enumeration ends when move next returns false
-        | Ok false -> Ok()
-        
-        | Ok true ->
-            match block(enumerator.Current) with
-            | Ok _ -> enumerateNextDirectoryWithBlock(enumerator, block)
-            | Error blockError -> Error(BlockError(blockError))
-        | Error(EnumerateDirectoriesError.DirectoryNotFound(ex)) ->
-            Error(EnumerateDirectoriesWithBlockError.DirectoryNotFound(ex))
-        | Error(EnumerateDirectoriesError.IOError(ex)) ->
-            Error(EnumerateDirectoriesWithBlockError.IOError(ex))
-        | Error(EnumerateDirectoriesError.PathTooLong(ex)) ->
-            Error(EnumerateDirectoriesWithBlockError.PathTooLong(ex))
-        | Error(EnumerateDirectoriesError.SecurityError(ex)) ->
-            Error(EnumerateDirectoriesWithBlockError.SecurityError(ex))
-        | Error(EnumerateDirectoriesError.UnauthorizedAccess(ex)) ->
-            Error(EnumerateDirectoriesWithBlockError.UnauthorizedAccess(ex))
-        | Error(EnumerateDirectoriesError.Unknown(ex)) ->
-            Error(EnumerateDirectoriesWithBlockError.Unknown(ex))
-
-    let public EnumerateDirectoriesWithBlock(srcPath, pattern, block: string -> Result<unit, 'BlockError>) =
-        
-        let enumeration = safeEnumerateDirectoryBlock(fun () -> Directory.EnumerateDirectories(srcPath, pattern))
-        
-        match enumeration with
-        | Ok enumeration ->
-            enumerateNextDirectoryWithBlock(enumeration.GetEnumerator(), block)
-        | Error(EnumerateDirectoriesError.DirectoryNotFound(ex)) ->
-            Error(EnumerateDirectoriesWithBlockError.DirectoryNotFound(ex))
-        | Error(EnumerateDirectoriesError.IOError(ex)) ->
-            Error(EnumerateDirectoriesWithBlockError.IOError(ex))
-        | Error(EnumerateDirectoriesError.PathTooLong(ex)) ->
-            Error(EnumerateDirectoriesWithBlockError.PathTooLong(ex))
-        | Error(EnumerateDirectoriesError.SecurityError(ex)) ->
-            Error(EnumerateDirectoriesWithBlockError.SecurityError(ex))
-        | Error(EnumerateDirectoriesError.UnauthorizedAccess(ex)) ->
-            Error(EnumerateDirectoriesWithBlockError.UnauthorizedAccess(ex))
-        | Error(EnumerateDirectoriesError.Unknown(ex)) ->
-            Error(EnumerateDirectoriesWithBlockError.Unknown(ex))
-
+    
     type GetDirectoriesError<'BlockError when 'BlockError :> IError> =
         | DirectoryNotFound of ex: Exception option
         | IOError of ex: Exception option
@@ -306,10 +183,141 @@ module FAEx =
                     match ex with
                     | Some ex -> ex.Message
                     | None -> "Unknown error"
-                
-    let public EnumerateDirectories(srcPath, pattern) =
+
+type FAEx =
+    static member Delete dirPath =
+        try
+            Directory.Delete(dirPath)
+            Ok()
+        with
+        | :? DirectoryNotFoundException as ex -> Error(FAErr.DirectoryDeleteError.NotFound(dirPath, Some ex))
+        | ex -> Error(FAErr.DirectoryDeleteError.Unknown(Some ex))
+    
+    static member DeleteAsync dirPath =
+        task {
+            try
+                do! BlockingTask.Run(fun () -> Directory.Delete(dirPath))
+                return Ok()
+            with
+            | :? DirectoryNotFoundException as ex -> return Error(FAErr.DirectoryDeleteError.NotFound(dirPath, Some ex))
+            | ex -> return Error(FAErr.DirectoryDeleteError.Unknown(Some ex))
+        }
+        
+    static member private safeEnumerateFileBlock(block: unit -> 'Ok): Result<'Ok, FAErr.EnumerateFilesError> =
+        try
+            Ok(block())
+        with
+        | :? DirectoryNotFoundException as ex -> Error(FAErr.EnumerateFilesError.DirectoryNotFound(Some ex))
+        | :? PathTooLongException as ex -> Error(FAErr.EnumerateFilesError.PathTooLong(Some ex))
+        | :? IOException as ex -> Error(FAErr.EnumerateFilesError.IOError(Some ex))
+        | :? SecurityException as ex -> Error(FAErr.EnumerateFilesError.SecurityError(Some ex))
+        | :? UnauthorizedAccessException as ex -> Error(FAErr.EnumerateFilesError.UnauthorizedAccess(Some ex))
+        | ex -> Error(FAErr.EnumerateFilesError.Unknown(Some ex))
+
+    static member private enumerateNextFileWithBlock(
+                                  enumerator: IEnumerator<string>,
+                                  block: string -> Result<'BlockOk, 'BlockError>
+                              ): Result<unit, FAErr.EnumerateFilesWithBlockError<'BlockError>> =
+        
+        match FAEx.safeEnumerateFileBlock(fun () -> enumerator.MoveNext()) with
+         //enumeration ends when move next returns false
+        | Ok false -> Ok()
+        
+        | Ok true ->
+            match block(enumerator.Current) with
+            | Ok _ -> FAEx.enumerateNextFileWithBlock(enumerator, block)
+            | Error blockError -> Error(FAErr.EnumerateFilesWithBlockError.BlockError(blockError))
+        | Error(FAErr.EnumerateFilesError.DirectoryNotFound(ex)) ->
+            Error(FAErr.EnumerateFilesWithBlockError.DirectoryNotFound(ex))
+        | Error(FAErr.EnumerateFilesError.IOError(ex)) ->
+            Error(FAErr.EnumerateFilesWithBlockError.IOError(ex))
+        | Error(FAErr.EnumerateFilesError.PathTooLong(ex)) ->
+            Error(FAErr.EnumerateFilesWithBlockError.PathTooLong(ex))
+        | Error(FAErr.EnumerateFilesError.SecurityError(ex)) ->
+            Error(FAErr.EnumerateFilesWithBlockError.SecurityError(ex))
+        | Error(FAErr.EnumerateFilesError.UnauthorizedAccess(ex)) ->
+            Error(FAErr.EnumerateFilesWithBlockError.UnauthorizedAccess(ex))
+        | Error(FAErr.EnumerateFilesError.Unknown(ex)) ->
+            Error(FAErr.EnumerateFilesWithBlockError.Unknown(ex))
+
+    static member EnumerateFilesWithBlock(srcPath, pattern, block: string -> Result<unit, 'BlockError>) =
+        let enumeration = FAEx.safeEnumerateFileBlock(fun () -> Directory.EnumerateFiles(srcPath, pattern))
+        
+        match enumeration with
+        | Ok enumeration ->
+            FAEx.enumerateNextFileWithBlock(enumeration.GetEnumerator(), block)
+        | Error(FAErr.EnumerateFilesError.DirectoryNotFound(ex)) ->
+            Error(FAErr.EnumerateFilesWithBlockError.DirectoryNotFound(ex))
+        | Error(FAErr.EnumerateFilesError.IOError(ex)) ->
+            Error(FAErr.EnumerateFilesWithBlockError.IOError(ex))
+        | Error(FAErr.EnumerateFilesError.PathTooLong(ex)) ->
+            Error(FAErr.EnumerateFilesWithBlockError.PathTooLong(ex))
+        | Error(FAErr.EnumerateFilesError.SecurityError(ex)) ->
+            Error(FAErr.EnumerateFilesWithBlockError.SecurityError(ex))
+        | Error(FAErr.EnumerateFilesError.UnauthorizedAccess(ex)) ->
+            Error(FAErr.EnumerateFilesWithBlockError.UnauthorizedAccess(ex))
+        | Error(FAErr.EnumerateFilesError.Unknown(ex)) ->
+            Error(FAErr.EnumerateFilesWithBlockError.Unknown(ex))
+
+    static member private safeEnumerateDirectoryBlock(block: unit -> 'Ok): Result<'Ok, FAErr.EnumerateDirectoriesError> =
+        try
+            Ok(block())
+        with
+        | :? DirectoryNotFoundException as ex -> Error(FAErr.EnumerateDirectoriesError.DirectoryNotFound(Some ex))
+        | :? PathTooLongException as ex -> Error(FAErr.EnumerateDirectoriesError.PathTooLong(Some ex))
+        | :? IOException as ex -> Error(FAErr.EnumerateDirectoriesError.IOError(Some ex))
+        | :? SecurityException as ex -> Error(FAErr.EnumerateDirectoriesError.SecurityError(Some ex))
+        | :? UnauthorizedAccessException as ex -> Error(FAErr.EnumerateDirectoriesError.UnauthorizedAccess(Some ex))
+        | ex -> Error(FAErr.EnumerateDirectoriesError.Unknown(Some ex))
+
+    static member private enumerateNextDirectoryWithBlock(enumerator: IEnumerator<string>,
+                              block: string -> Result<'BlockOk, 'BlockError>): Result<unit, FAErr.EnumerateDirectoriesWithBlockError<'BlockError>> =
+        
+       
+        match FAEx.safeEnumerateDirectoryBlock(fun () -> enumerator.MoveNext()) with
+        //enumeration ends when move next returns false
+        | Ok false -> Ok()
+        
+        | Ok true ->
+            match block(enumerator.Current) with
+            | Ok _ -> FAEx.enumerateNextDirectoryWithBlock(enumerator, block)
+            | Error blockError -> Error(FAErr.EnumerateDirectoriesWithBlockError.BlockError(blockError))
+        | Error(FAErr.EnumerateDirectoriesError.DirectoryNotFound(ex)) ->
+            Error(FAErr.EnumerateDirectoriesWithBlockError.DirectoryNotFound(ex))
+        | Error(FAErr.EnumerateDirectoriesError.IOError(ex)) ->
+            Error(FAErr.EnumerateDirectoriesWithBlockError.IOError(ex))
+        | Error(FAErr.EnumerateDirectoriesError.PathTooLong(ex)) ->
+            Error(FAErr.EnumerateDirectoriesWithBlockError.PathTooLong(ex))
+        | Error(FAErr.EnumerateDirectoriesError.SecurityError(ex)) ->
+            Error(FAErr.EnumerateDirectoriesWithBlockError.SecurityError(ex))
+        | Error(FAErr.EnumerateDirectoriesError.UnauthorizedAccess(ex)) ->
+            Error(FAErr.EnumerateDirectoriesWithBlockError.UnauthorizedAccess(ex))
+        | Error(FAErr.EnumerateDirectoriesError.Unknown(ex)) ->
+            Error(FAErr.EnumerateDirectoriesWithBlockError.Unknown(ex))
+
+    static member EnumerateDirectoriesWithBlock(srcPath, pattern, block: string -> Result<unit, 'BlockError>) =
+        
+        let enumeration = FAEx.safeEnumerateDirectoryBlock(fun () -> Directory.EnumerateDirectories(srcPath, pattern))
+        
+        match enumeration with
+        | Ok enumeration ->
+            FAEx.enumerateNextDirectoryWithBlock(enumeration.GetEnumerator(), block)
+        | Error(FAErr.EnumerateDirectoriesError.DirectoryNotFound(ex)) ->
+            Error(FAErr.EnumerateDirectoriesWithBlockError.DirectoryNotFound(ex))
+        | Error(FAErr.EnumerateDirectoriesError.IOError(ex)) ->
+            Error(FAErr.EnumerateDirectoriesWithBlockError.IOError(ex))
+        | Error(FAErr.EnumerateDirectoriesError.PathTooLong(ex)) ->
+            Error(FAErr.EnumerateDirectoriesWithBlockError.PathTooLong(ex))
+        | Error(FAErr.EnumerateDirectoriesError.SecurityError(ex)) ->
+            Error(FAErr.EnumerateDirectoriesWithBlockError.SecurityError(ex))
+        | Error(FAErr.EnumerateDirectoriesError.UnauthorizedAccess(ex)) ->
+            Error(FAErr.EnumerateDirectoriesWithBlockError.UnauthorizedAccess(ex))
+        | Error(FAErr.EnumerateDirectoriesError.Unknown(ex)) ->
+            Error(FAErr.EnumerateDirectoriesWithBlockError.Unknown(ex))
+     
+    static member EnumerateDirectories(srcPath, pattern) =
         seq {
-            let enumeration = safeEnumerateDirectoryBlock(fun () -> Directory.EnumerateDirectories(srcPath, pattern))
+            let enumeration = FAEx.safeEnumerateDirectoryBlock(fun () -> Directory.EnumerateDirectories(srcPath, pattern))
             
             match enumeration with
             | Ok enumeration ->
@@ -318,7 +326,7 @@ module FAEx =
                 let mutable moveNextExists = true
                 
                 while moveNextExists do
-                    match safeEnumerateDirectoryBlock(fun () -> enumerator.MoveNext()) with
+                    match FAEx.safeEnumerateDirectoryBlock(fun () -> enumerator.MoveNext()) with
                     | Ok true -> yield Ok enumerator.Current
                     | Ok false -> moveNextExists <- false
                     | Error error ->
@@ -328,9 +336,9 @@ module FAEx =
             | Error error -> yield Error error
         }
             
-    let public EnumerateFiles(srcPath, pattern) =
+    static member EnumerateFiles(srcPath, pattern) =
         seq {
-            let enumeration = safeEnumerateFileBlock(fun () -> Directory.EnumerateFiles(srcPath, pattern))
+            let enumeration = FAEx.safeEnumerateFileBlock(fun () -> Directory.EnumerateFiles(srcPath, pattern))
             
             match enumeration with
             | Ok enumeration ->
@@ -339,7 +347,7 @@ module FAEx =
                 let mutable moveNextExists = true
                 
                 while moveNextExists do
-                    match safeEnumerateFileBlock(fun () -> enumerator.MoveNext()) with
+                    match FAEx.safeEnumerateFileBlock(fun () -> enumerator.MoveNext()) with
                     | Ok true -> yield Ok enumerator.Current
                     | Ok false -> moveNextExists <- false
                     | Error error ->
@@ -349,7 +357,7 @@ module FAEx =
             | Error error -> yield Error error
         }
 
-    let public EnumerateFilesAsync(srcPath, pattern) =
+    static member EnumerateFilesAsync(srcPath, pattern) =
         seq {
             let mutable moveNextExists = true
             let mutable enumerator: IEnumerator<string> = null
@@ -358,7 +366,7 @@ module FAEx =
                 task {
                     let! enumeration =
                         BlockingTask.Run(fun () ->
-                            safeEnumerateFileBlock(fun () ->
+                            FAEx.safeEnumerateFileBlock(fun () ->
                                 Directory.EnumerateFiles(srcPath, pattern)
                             )
                         )
@@ -368,7 +376,7 @@ module FAEx =
                         enumerator <- enumeration.GetEnumerator()
                         
                         let! moveNextRes =
-                            BlockingTask.Run(fun () -> safeEnumerateFileBlock(fun () -> enumerator.MoveNext()))
+                            BlockingTask.Run(fun () -> FAEx.safeEnumerateFileBlock(fun () -> enumerator.MoveNext()))
                         
                         match moveNextRes with
                         | Ok true -> return Ok(Some enumerator.Current)
@@ -397,7 +405,7 @@ module FAEx =
                         lastTaskExecuted <- true
                         
                         let! moveNextRes =
-                                BlockingTask.Run(fun () -> safeEnumerateFileBlock(fun () -> enumerator.MoveNext()))
+                                BlockingTask.Run(fun () -> FAEx.safeEnumerateFileBlock(fun () -> enumerator.MoveNext()))
                         
                         match moveNextRes with
                         | Ok true -> return Ok(Some enumerator.Current)
@@ -414,11 +422,11 @@ module FAEx =
         }
     
     // Returns the names of subdirectories (including their paths) in the specified directory.
-    let public GetDirectories(srcPath, pattern) =
+    static member GetDirectories(srcPath, pattern) =
         let mutable dirList = []
         
         let res = 
-            EnumerateDirectoriesWithBlock(
+            FAEx.EnumerateDirectoriesWithBlock(
                 srcPath,
                 pattern,
                 (fun file ->
@@ -428,18 +436,18 @@ module FAEx =
             )
         
         match res with
-        | Error(EnumerateDirectoriesWithBlockError.DirectoryNotFound(ex)) ->
-            Error(GetDirectoriesError.DirectoryNotFound(ex))
-        | Error(EnumerateDirectoriesWithBlockError.IOError(ex)) ->
-            Error(GetDirectoriesError.IOError(ex))
-        | Error(EnumerateDirectoriesWithBlockError.PathTooLong(ex)) ->
-            Error(GetDirectoriesError.PathTooLong(ex))
-        | Error(EnumerateDirectoriesWithBlockError.SecurityError(ex)) ->
-            Error(GetDirectoriesError.SecurityError(ex))
-        | Error(EnumerateDirectoriesWithBlockError.UnauthorizedAccess(ex)) ->
-            Error(GetDirectoriesError.UnauthorizedAccess(ex))
-        | Error(EnumerateDirectoriesWithBlockError.Unknown(ex)) ->
-            Error(GetDirectoriesError.Unknown(ex))
-        | Error(EnumerateDirectoriesWithBlockError.BlockError _) ->
+        | Error(FAErr.EnumerateDirectoriesWithBlockError.DirectoryNotFound(ex)) ->
+            Error(FAErr.GetDirectoriesError.DirectoryNotFound(ex))
+        | Error(FAErr.EnumerateDirectoriesWithBlockError.IOError(ex)) ->
+            Error(FAErr.GetDirectoriesError.IOError(ex))
+        | Error(FAErr.EnumerateDirectoriesWithBlockError.PathTooLong(ex)) ->
+            Error(FAErr.GetDirectoriesError.PathTooLong(ex))
+        | Error(FAErr.EnumerateDirectoriesWithBlockError.SecurityError(ex)) ->
+            Error(FAErr.GetDirectoriesError.SecurityError(ex))
+        | Error(FAErr.EnumerateDirectoriesWithBlockError.UnauthorizedAccess(ex)) ->
+            Error(FAErr.GetDirectoriesError.UnauthorizedAccess(ex))
+        | Error(FAErr.EnumerateDirectoriesWithBlockError.Unknown(ex)) ->
+            Error(FAErr.GetDirectoriesError.Unknown(ex))
+        | Error(FAErr.EnumerateDirectoriesWithBlockError.BlockError _) ->
             failwith "Block error is not realized"
         | Ok _ -> Ok(dirList |> List.toArray)
