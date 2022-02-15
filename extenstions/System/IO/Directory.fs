@@ -334,20 +334,34 @@ type FAEx =
                                            FAEx.safeEnumerateDirectoriesBlock)
     
     static member EnumerateDirectoriesAsync(srcPath, pattern) =
-        SafeEnumeration.EnumerateWithErrorAsync((fun () ->
-                                                   FAEx.safeEnumerateDirectoriesBlock(fun () ->
-                                                       Directory.EnumerateDirectories(srcPath, pattern)
+        SafeEnumeration.EnumerateWithErrorAsync(
+                                                   (fun () ->
+                                                        BlockingTask.Run(fun () ->
+                                                                FAEx.safeEnumerateDirectoriesBlock(fun () ->
+                                                                    Directory.EnumerateDirectories(srcPath, pattern)
+                                                                )
+                                                        )
+                                                   ),
+                                                   (fun moveNext ->
+                                                       BlockingTask.Run(fun () ->
+                                                           FAEx.safeEnumerateDirectoriesBlock(moveNext))
                                                    )
-                                                ),
-                                                FAEx.safeEnumerateDirectoriesBlock)
+                                               )
     
     static member EnumerateDirectoriesAsync(srcPath) =
-        SafeEnumeration.EnumerateWithErrorAsync((fun () ->
-                                                    FAEx.safeEnumerateDirectoriesBlock(fun () ->
-                                                    Directory.EnumerateDirectories(srcPath)
-                                                )
-                                               ),
-                                               FAEx.safeEnumerateDirectoriesBlock)
+        SafeEnumeration.EnumerateWithErrorAsync(
+                                                   (fun () ->
+                                                        BlockingTask.Run(fun () ->
+                                                                FAEx.safeEnumerateDirectoriesBlock(fun () ->
+                                                                    Directory.EnumerateDirectories(srcPath)
+                                                                )
+                                                        )
+                                                   ),
+                                                   (fun moveNext ->
+                                                       BlockingTask.Run(fun () ->
+                                                           FAEx.safeEnumerateDirectoriesBlock(moveNext))
+                                                   )
+                                               )
             
     static member EnumerateFiles(srcPath, pattern) =
         SafeEnumeration.EnumerateWithError((fun () ->
@@ -366,20 +380,34 @@ type FAEx =
                                            FAEx.safeEnumerateFilesBlock)
     
     static member EnumerateFilesAsync(srcPath, pattern) =
-        SafeEnumeration.EnumerateWithErrorAsync((fun () ->
-                                               FAEx.safeEnumerateFilesBlock(fun () ->
-                                                   Directory.EnumerateFiles(srcPath, pattern)
+        SafeEnumeration.EnumerateWithErrorAsync(
+                                                   (fun () ->
+                                                        BlockingTask.Run(fun () ->
+                                                                FAEx.safeEnumerateFilesBlock(fun () ->
+                                                                    Directory.EnumerateFiles(srcPath, pattern)
+                                                                )
+                                                        )
+                                                   ),
+                                                   (fun moveNext ->
+                                                       BlockingTask.Run(fun () ->
+                                                           FAEx.safeEnumerateFilesBlock(moveNext))
+                                                   )
                                                )
-                                           ),
-                                           FAEx.safeEnumerateFilesBlock)
     
     static member EnumerateFilesAsync(srcPath) =
-        SafeEnumeration.EnumerateWithErrorAsync((fun () ->
-                                               FAEx.safeEnumerateFilesBlock(fun () ->
-                                                   Directory.EnumerateFiles(srcPath)
+        SafeEnumeration.EnumerateWithErrorAsync(
+                                                   (fun () ->
+                                                        BlockingTask.Run(fun () ->
+                                                                FAEx.safeEnumerateFilesBlock(fun () ->
+                                                                    Directory.EnumerateFiles(srcPath)
+                                                                )
+                                                        )
+                                                   ),
+                                                   (fun moveNext ->
+                                                       BlockingTask.Run(fun () ->
+                                                           FAEx.safeEnumerateFilesBlock(moveNext))
+                                                   )
                                                )
-                                           ),
-                                           FAEx.safeEnumerateFilesBlock)
     
     // Returns the names of subdirectories (including their paths) in the specified directory.
     static member GetDirectories(srcPath, pattern) =

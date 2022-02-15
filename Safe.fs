@@ -1,5 +1,6 @@
 ﻿module FAUtils.Safe
 
+open System.Threading.Tasks
 open FAUtils.Async
 open System.Collections.Generic
 
@@ -30,8 +31,8 @@ type SafeEnumeration =
         }
     
     static member EnumerateWithErrorAsync(
-            enumGetter: unit -> Result<IEnumerable<'ResultEnum>, 'ErrorEnum>,
-            moveNext: (unit -> bool) -> Result<bool, 'ErrorEnum>
+            enumGetter: unit -> Task<Result<IEnumerable<'ResultEnum>, 'ErrorEnum>>,
+            moveNext: (unit -> bool) -> Task< Result<bool, 'ErrorEnum>>
         ) =
         seq {
             let mutable moveNextExists = true
@@ -39,14 +40,13 @@ type SafeEnumeration =
             
             let enumeration =
                 task {
-                    let! enumeration = BlockingTask.Run(enumGetter)
+                    let! enumeration = enumGetter()
                                          
                     match enumeration with
                     | Ok enumeration ->
                         enumerator <- enumeration.GetEnumerator()
                         
-                        let! moveNextRes =
-                            BlockingTask.Run(fun () -> moveNext(fun () -> enumerator.MoveNext()))
+                        let! moveNextRes = moveNext(fun () -> enumerator.MoveNext())
                         
                         match moveNextRes with
                         | Ok true -> return Ok(Some enumerator.Current)
@@ -74,8 +74,7 @@ type SafeEnumeration =
                     task {
                         lastTaskExecuted <- true
                         
-                        let! moveNextRes =
-                                BlockingTask.Run(fun () -> moveNext(fun () -> enumerator.MoveNext()))
+                        let! moveNextRes = moveNext(fun () -> enumerator.MoveNext())
                         
                         match moveNextRes with
                         | Ok true -> return Ok(Some enumerator.Current)
