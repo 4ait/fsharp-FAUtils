@@ -5,6 +5,7 @@ open System
 open System.Collections.Generic
 open System.IO
 open System.Security
+open FAUtils
 open FAUtils.Async
 open FAUtils.ErrorManagement
 open FSharp.Control
@@ -259,7 +260,7 @@ type FAEx =
         | Error(FAErr.EnumerateFilesError.Unknown(ex)) ->
             Error(FAErr.EnumerateFilesWithBlockError.Unknown(ex))
 
-    static member private safeEnumerateDirectoryBlock(block: unit -> 'Ok): Result<'Ok, FAErr.EnumerateDirectoriesError> =
+    static member private safeEnumerateDirectoriesBlock(block: unit -> 'Ok): Result<'Ok, FAErr.EnumerateDirectoriesError> =
         try
             Ok(block())
         with
@@ -274,7 +275,7 @@ type FAEx =
                               block: string -> Result<'BlockOk, 'BlockError>): Result<unit, FAErr.EnumerateDirectoriesWithBlockError<'BlockError>> =
         
        
-        match FAEx.safeEnumerateDirectoryBlock(fun () -> enumerator.MoveNext()) with
+        match FAEx.safeEnumerateDirectoriesBlock(fun () -> enumerator.MoveNext()) with
         //enumeration ends when move next returns false
         | Ok false -> Ok()
         
@@ -297,7 +298,7 @@ type FAEx =
 
     static member EnumerateDirectoriesWithBlock(srcPath, pattern, block: string -> Result<unit, 'BlockError>) =
         
-        let enumeration = FAEx.safeEnumerateDirectoryBlock(fun () -> Directory.EnumerateDirectories(srcPath, pattern))
+        let enumeration = FAEx.safeEnumerateDirectoriesBlock(fun () -> Directory.EnumerateDirectories(srcPath, pattern))
         
         match enumeration with
         | Ok enumeration ->
@@ -315,117 +316,70 @@ type FAEx =
         | Error(FAErr.EnumerateDirectoriesError.Unknown(ex)) ->
             Error(FAErr.EnumerateDirectoriesWithBlockError.Unknown(ex))
      
+     
     static member EnumerateDirectories(srcPath, pattern) =
-        seq {
-            let enumeration = FAEx.safeEnumerateDirectoryBlock(fun () -> Directory.EnumerateDirectories(srcPath, pattern))
-            
-            match enumeration with
-            | Ok enumeration ->
-                let enumerator = enumeration.GetEnumerator()
-                
-                let mutable moveNextExists = true
-                
-                while moveNextExists do
-                    match FAEx.safeEnumerateDirectoryBlock(fun () -> enumerator.MoveNext()) with
-                    | Ok true -> yield Ok enumerator.Current
-                    | Ok false -> moveNextExists <- false
-                    | Error error ->
-                        yield Error error
-                        moveNextExists <- false
-                
-            | Error error -> yield Error error
-        }
+        SafeEnumeration.EnumerateWithError((fun () ->
+                                               FAEx.safeEnumerateDirectoriesBlock(fun () ->
+                                                   Directory.EnumerateDirectories(srcPath, pattern)
+                                               )
+                                           ),
+                                           FAEx.safeEnumerateDirectoriesBlock)
     
-    static member private enumerateFilesWithStaticEnumerator(enumGetter: unit -> IEnumerable<string>) =
-        seq {
-            let enumeration = FAEx.safeEnumerateFilesBlock(enumGetter)
-            
-            match enumeration with
-            | Ok enumeration ->
-                let enumerator = enumeration.GetEnumerator()
-                
-                let mutable moveNextExists = true
-                
-                while moveNextExists do
-                    match FAEx.safeEnumerateFilesBlock(fun () -> enumerator.MoveNext()) with
-                    | Ok true -> yield Ok enumerator.Current
-                    | Ok false -> moveNextExists <- false
-                    | Error error ->
-                        yield Error error
-                        moveNextExists <- false
-                
-            | Error error -> yield Error error
-        }
+    static member EnumerateDirectories(srcPath) =
+        SafeEnumeration.EnumerateWithError((fun () ->
+                                               FAEx.safeEnumerateDirectoriesBlock(fun () ->
+                                                   Directory.EnumerateDirectories(srcPath)
+                                               )
+                                           ),
+                                           FAEx.safeEnumerateDirectoriesBlock)
+    
+    static member EnumerateDirectoriesAsync(srcPath, pattern) =
+        SafeEnumeration.EnumerateWithErrorAsync((fun () ->
+                                                   FAEx.safeEnumerateDirectoriesBlock(fun () ->
+                                                       Directory.EnumerateDirectories(srcPath, pattern)
+                                                   )
+                                                ),
+                                                FAEx.safeEnumerateDirectoriesBlock)
+    
+    static member EnumerateDirectoriesAsync(srcPath) =
+        SafeEnumeration.EnumerateWithErrorAsync((fun () ->
+                                                    FAEx.safeEnumerateDirectoriesBlock(fun () ->
+                                                    Directory.EnumerateDirectories(srcPath)
+                                                )
+                                               ),
+                                               FAEx.safeEnumerateDirectoriesBlock)
             
     static member EnumerateFiles(srcPath, pattern) =
-        FAEx.enumerateFilesWithStaticEnumerator(fun () -> Directory.EnumerateFiles(srcPath, pattern))
+        SafeEnumeration.EnumerateWithError((fun () ->
+                                               FAEx.safeEnumerateFilesBlock(fun () ->
+                                                   Directory.EnumerateFiles(srcPath, pattern)
+                                               )
+                                           ),
+                                           FAEx.safeEnumerateFilesBlock)
 
     static member EnumerateFiles(srcPath) =
-        FAEx.enumerateFilesWithStaticEnumerator(fun () -> Directory.EnumerateFiles(srcPath))
+        SafeEnumeration.EnumerateWithError((fun () ->
+                                               FAEx.safeEnumerateFilesBlock(fun () ->
+                                                   Directory.EnumerateFiles(srcPath)
+                                               )
+                                           ),
+                                           FAEx.safeEnumerateFilesBlock)
     
     static member EnumerateFilesAsync(srcPath, pattern) =
-        seq {
-            let mutable moveNextExists = true
-            let mutable enumerator: IEnumerator<string> = null
-            
-            let enumeration =
-                task {
-                    let! enumeration =
-                        BlockingTask.Run(fun () ->
-                            FAEx.safeEnumerateFilesBlock(fun () ->
-                                Directory.EnumerateFiles(srcPath, pattern)
-                            )
-                        )
-                                         
-                    match enumeration with
-                    | Ok enumeration ->
-                        enumerator <- enumeration.GetEnumerator()
-                        
-                        let! moveNextRes =
-                            BlockingTask.Run(fun () -> FAEx.safeEnumerateFilesBlock(fun () -> enumerator.MoveNext()))
-                        
-                        match moveNextRes with
-                        | Ok true -> return Ok(Some enumerator.Current)
-                        | Ok false ->
-                            moveNextExists <- false
-                            return Ok None
-                        | Error error ->
-                            moveNextExists <- false
-                            return Error error
-                        
-                    | Error error ->
-                        moveNextExists <- false
-                        return Error error
-                }
-            
-            yield enumeration
-            
-            let mutable lastTaskExecuted = true
-            
-            while moveNextExists do
-                if not lastTaskExecuted then
-                    failwith "Previous task is not executed. Please, wait task before iterate next element"
-                
-                let enumeration =
-                    task {
-                        lastTaskExecuted <- true
-                        
-                        let! moveNextRes =
-                                BlockingTask.Run(fun () -> FAEx.safeEnumerateFilesBlock(fun () -> enumerator.MoveNext()))
-                        
-                        match moveNextRes with
-                        | Ok true -> return Ok(Some enumerator.Current)
-                        | Ok false ->
-                            moveNextExists <- false
-                            return Ok None
-                        | Error error ->
-                            moveNextExists <- false
-                            return Error error
-                    }
-                
-                lastTaskExecuted <- false
-                yield enumeration
-        }
+        SafeEnumeration.EnumerateWithErrorAsync((fun () ->
+                                               FAEx.safeEnumerateFilesBlock(fun () ->
+                                                   Directory.EnumerateFiles(srcPath, pattern)
+                                               )
+                                           ),
+                                           FAEx.safeEnumerateFilesBlock)
+    
+    static member EnumerateFilesAsync(srcPath) =
+        SafeEnumeration.EnumerateWithErrorAsync((fun () ->
+                                               FAEx.safeEnumerateFilesBlock(fun () ->
+                                                   Directory.EnumerateFiles(srcPath)
+                                               )
+                                           ),
+                                           FAEx.safeEnumerateFilesBlock)
     
     // Returns the names of subdirectories (including their paths) in the specified directory.
     static member GetDirectories(srcPath, pattern) =
@@ -457,3 +411,4 @@ type FAEx =
         | Error(FAErr.EnumerateDirectoriesWithBlockError.BlockError _) ->
             failwith "Block error is not realized"
         | Ok _ -> Ok(dirList |> List.toArray)
+    
