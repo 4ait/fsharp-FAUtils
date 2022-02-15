@@ -225,41 +225,34 @@ let public DeleteFilesInDirectoryAsync(srcPath, pattern) =
             |> Seq.takeWhile(fun _ -> lastError.IsNone)
         
         for file in files do
-            let! innerTask =
-                task {
-                    let! file = file
-                
-                    match file with
-                    | Ok file ->
-                        match file with
-                        | Some file ->
-                            let! res = File.FAEx.DeleteAsync file
-                            
-                            match res with
-                            | Error(File.FAErr.FileDeleteError.NotFound(file, ex)) ->
-                                return Error(DeleteFilesInDirectoryError.FileNotFound(file, ex))
-                            | Error(File.FAErr.FileDeleteError.Unknown ex) ->
-                                return Error(DeleteFilesInDirectoryError.Unknown(ex))
-                            | Ok _ -> return Ok(Some ())
-                        | None -> return Ok(None)
-                            
-                    | Error(Directory.FAErr.EnumerateFilesError.DirectoryNotFound(ex)) ->
-                        return Error(DeleteFilesInDirectoryError.DirectoryNotFound(srcPath, ex))
-                    | Error(Directory.FAErr.EnumerateFilesError.IOError(ex)) ->
-                        return Error(DeleteFilesInDirectoryError.IOError(ex))
-                    | Error(Directory.FAErr.EnumerateFilesError.PathTooLong(ex)) ->
-                        return Error(DeleteFilesInDirectoryError.PathTooLong(srcPath, ex))
-                    | Error(Directory.FAErr.EnumerateFilesError.SecurityError(ex)) ->
-                        return Error(DeleteFilesInDirectoryError.SecurityError(srcPath, ex))
-                    | Error(Directory.FAErr.EnumerateFilesError.UnauthorizedAccess(ex)) ->
-                        return Error(DeleteFilesInDirectoryError.UnauthorizedAccess(srcPath, ex))
-                    | Error(Directory.FAErr.EnumerateFilesError.Unknown(ex)) ->
-                        return Error(DeleteFilesInDirectoryError.Unknown(ex))
-                }
-                
-            match innerTask with
-            | Ok _ -> ignore |> ignore
-            | Error err -> lastError <- Some err
+            let! file = file
+        
+            match file with
+            | Ok file ->
+                match file with
+                | Some file ->
+                    let! res = File.FAEx.DeleteAsync file
+                    
+                    match res with
+                    | Error(File.FAErr.FileDeleteError.NotFound(file, ex)) ->
+                        lastError <- Some(DeleteFilesInDirectoryError.FileNotFound(file, ex))
+                    | Error(File.FAErr.FileDeleteError.Unknown ex) ->
+                        lastError <- Some(DeleteFilesInDirectoryError.Unknown(ex))
+                    | Ok _ -> ignore |> ignore
+                | None -> ignore |> ignore
+                    
+            | Error(Directory.FAErr.EnumerateFilesError.DirectoryNotFound(ex)) ->
+                lastError <-  Some(DeleteFilesInDirectoryError.DirectoryNotFound(srcPath, ex))
+            | Error(Directory.FAErr.EnumerateFilesError.IOError(ex)) ->
+                lastError <-  Some(DeleteFilesInDirectoryError.IOError(ex))
+            | Error(Directory.FAErr.EnumerateFilesError.PathTooLong(ex)) ->
+                lastError <-  Some(DeleteFilesInDirectoryError.PathTooLong(srcPath, ex))
+            | Error(Directory.FAErr.EnumerateFilesError.SecurityError(ex)) ->
+                lastError <-  Some(DeleteFilesInDirectoryError.SecurityError(srcPath, ex))
+            | Error(Directory.FAErr.EnumerateFilesError.UnauthorizedAccess(ex)) ->
+                lastError <-  Some(DeleteFilesInDirectoryError.UnauthorizedAccess(srcPath, ex))
+            | Error(Directory.FAErr.EnumerateFilesError.Unknown(ex)) ->
+                lastError <- Some(DeleteFilesInDirectoryError.Unknown(ex))
         
         match lastError with
         | Some error -> return Error error
