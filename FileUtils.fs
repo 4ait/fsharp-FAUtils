@@ -238,8 +238,8 @@ let public DeleteFilesInDirectoryAsync(srcPath, pattern) =
                         lastError <- Some(DeleteFilesInDirectoryError.FileNotFound(file, ex))
                     | Error(File.FAErr.FileDeleteError.Unknown ex) ->
                         lastError <- Some(DeleteFilesInDirectoryError.Unknown(ex))
-                    | Ok _ -> ignore |> ignore
-                | None -> ignore |> ignore
+                    | Ok _ -> ()
+                | None -> ()
                     
             | Error(Directory.FAErr.EnumerateFilesError.DirectoryNotFound(ex)) ->
                 lastError <-  Some(DeleteFilesInDirectoryError.DirectoryNotFound(srcPath, ex))
