@@ -11,13 +11,13 @@ for dir in dirEnum do
     let dir = dir |> IError.Expect
     printfn $"{dir}"
 
-task {
-    let dirEnum = Directory.FAEx.EnumerateFilesAsync(@"C:/", "*")
+let task =
+    task {
+        let dirEnum = Directory.FAEx.EnumerateFilesAsync(@"C:/")
 
-    for dir in dirEnum do
-        let! dir = dir
-        let dir = dir |> IError.Expect
-        printfn $"{dir}"
-}
-|> Task.WaitAny
-|> ignore
+        for dir in dirEnum do
+            let! dir = dir
+            let dir = dir |> IError.Expect
+            printfn $"{dir}"
+    }
+task.Wait()

@@ -344,7 +344,8 @@ type FAEx =
                                                    ),
                                                    (fun moveNext ->
                                                        BlockingTask.Run(fun () ->
-                                                           FAEx.safeEnumerateDirectoriesBlock(moveNext))
+                                                           FAEx.safeEnumerateDirectoriesBlock(moveNext)
+                                                       )
                                                    )
                                                )
     
@@ -359,7 +360,8 @@ type FAEx =
                                                    ),
                                                    (fun moveNext ->
                                                        BlockingTask.Run(fun () ->
-                                                           FAEx.safeEnumerateDirectoriesBlock(moveNext))
+                                                           FAEx.safeEnumerateDirectoriesBlock(moveNext)
+                                                       )
                                                    )
                                                )
             
@@ -390,7 +392,8 @@ type FAEx =
                                                    ),
                                                    (fun moveNext ->
                                                        BlockingTask.Run(fun () ->
-                                                           FAEx.safeEnumerateFilesBlock(moveNext))
+                                                           FAEx.safeEnumerateFilesBlock(moveNext)
+                                                       )
                                                    )
                                                )
     
@@ -405,7 +408,8 @@ type FAEx =
                                                    ),
                                                    (fun moveNext ->
                                                        BlockingTask.Run(fun () ->
-                                                           FAEx.safeEnumerateFilesBlock(moveNext))
+                                                           FAEx.safeEnumerateFilesBlock(moveNext)
+                                                       )
                                                    )
                                                )
     

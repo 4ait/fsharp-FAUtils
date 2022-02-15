@@ -32,15 +32,19 @@ type SafeEnumeration =
     
     static member EnumerateWithErrorAsync(
             enumGetter: unit -> Task<Result<IEnumerable<'ResultEnum>, 'ErrorEnum>>,
-            moveNext: (unit -> bool) -> Task< Result<bool, 'ErrorEnum>>
+            moveNext: (unit -> bool) -> Task<Result<bool, 'ErrorEnum>>
         ) =
         seq {
             let mutable moveNextExists = true
             let mutable enumerator: IEnumerator<'ResultEnum> = null
             
+            let mutable lastTaskExecuted = false
+            
             let enumeration =
                 task {
                     let! enumeration = enumGetter()
+                    
+                    lastTaskExecuted <- true
                                          
                     match enumeration with
                     | Ok enumeration ->
@@ -64,17 +68,15 @@ type SafeEnumeration =
             
             yield enumeration
             
-            let mutable lastTaskExecuted = true
-            
             while moveNextExists do
                 if not lastTaskExecuted then
                     failwith "Previous task is not executed. Please, wait task before iterate next element"
                 
                 let enumeration =
                     task {
-                        lastTaskExecuted <- true
-                        
                         let! moveNextRes = moveNext(fun () -> enumerator.MoveNext())
+                        
+                        lastTaskExecuted <- true
                         
                         match moveNextRes with
                         | Ok true -> return Ok(Some enumerator.Current)
