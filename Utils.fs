@@ -139,6 +139,16 @@ type FileUtils =
 
     static member DeleteDirectoriesInDirectory(srcPath, pattern, deleteFilesInDirectories, deleteSubDirs) =
         let enumerationDirectoriesResult = Directory.FAEx.EnumerateDirectoriesWithBlock(srcPath, pattern, (fun dir ->
+                
+                let deleteDirectory() =
+                    match Directory.FAEx.Delete(dir) with
+                    | Error(Directory.FAErr.DirectoryDeleteError.NotFound(tempPath, ex)) ->
+                        Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.DirectoryNotFound(tempPath, ex))
+                    | Error(Directory.FAErr.DirectoryDeleteError.Unknown ex) ->
+                        Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.Unknown ex)
+                    | Ok _ ->
+                        Ok()
+                
                 if deleteFilesInDirectories then
                     match FileUtils.DeleteFilesInDirectory(dir, "*") with
                     | Error(FileUtils.Err.DeleteFilesInDirectoryError.DirectoryNotFound(srcPath, ex)) ->
@@ -161,18 +171,11 @@ type FileUtils =
                             match FileUtils.DeleteDirectoriesInDirectory(dir, "*", deleteFilesInDirectories, deleteSubDirs) with
                             | Error error -> Error error
                             | Ok _ ->
-                                
-                                match Directory.FAEx.Delete(dir) with
-                                | Error(Directory.FAErr.DirectoryDeleteError.NotFound(tempPath, ex)) ->
-                                    Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.DirectoryNotFound(tempPath, ex))
-                                | Error(Directory.FAErr.DirectoryDeleteError.Unknown ex) ->
-                                    Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.Unknown ex)
-                                | Ok _ ->
-                                    Ok()
+                                deleteDirectory()
                         else
-                            Ok()
+                            deleteDirectory()
                 else 
-                    Ok()
+                    deleteDirectory()
         ))
         
         match enumerationDirectoriesResult with
@@ -231,10 +234,8 @@ type FileUtils =
                 
                 Ok()
 
-    static member DeleteFilesInDirectoryAsync(srcPath, pattern) =
+    static member private safeDeleteFilesInDirectoryAsync(srcPath, files) =
         task {
-            let files = Directory.FAEx.EnumerateFilesAsync(srcPath, pattern)
-               
             let mutable lastError = None
             
             let files =
@@ -256,18 +257,19 @@ type FileUtils =
                         | Error(File.FAErr.FileDeleteError.Unknown ex) ->
                             lastError <- Some(FileUtils.Err.DeleteFilesInDirectoryError.Unknown(ex))
                         | Ok _ -> ()
+                        
                     | None -> ()
                         
                 | Error(Directory.FAErr.EnumerateFilesError.DirectoryNotFound(ex)) ->
-                    lastError <-  Some(FileUtils.Err.DeleteFilesInDirectoryError.DirectoryNotFound(srcPath, ex))
+                    lastError <- Some(FileUtils.Err.DeleteFilesInDirectoryError.DirectoryNotFound(srcPath, ex))
                 | Error(Directory.FAErr.EnumerateFilesError.IOError(ex)) ->
-                    lastError <-  Some(FileUtils.Err.DeleteFilesInDirectoryError.IOError(ex))
+                    lastError <- Some(FileUtils.Err.DeleteFilesInDirectoryError.IOError(ex))
                 | Error(Directory.FAErr.EnumerateFilesError.PathTooLong(ex)) ->
-                    lastError <-  Some(FileUtils.Err.DeleteFilesInDirectoryError.PathTooLong(srcPath, ex))
+                    lastError <- Some(FileUtils.Err.DeleteFilesInDirectoryError.PathTooLong(srcPath, ex))
                 | Error(Directory.FAErr.EnumerateFilesError.SecurityError(ex)) ->
-                    lastError <-  Some(FileUtils.Err.DeleteFilesInDirectoryError.SecurityError(srcPath, ex))
+                    lastError <- Some(FileUtils.Err.DeleteFilesInDirectoryError.SecurityError(srcPath, ex))
                 | Error(Directory.FAErr.EnumerateFilesError.UnauthorizedAccess(ex)) ->
-                    lastError <-  Some(FileUtils.Err.DeleteFilesInDirectoryError.UnauthorizedAccess(srcPath, ex))
+                    lastError <- Some(FileUtils.Err.DeleteFilesInDirectoryError.UnauthorizedAccess(srcPath, ex))
                 | Error(Directory.FAErr.EnumerateFilesError.Unknown(ex)) ->
                     lastError <- Some(FileUtils.Err.DeleteFilesInDirectoryError.Unknown(ex))
             
@@ -275,7 +277,106 @@ type FileUtils =
             | Some error -> return Error error
             | None -> return Ok()
         }
+    
+    static member private safeDeleteDirectoriesInDirectoryAsync(srcPath,
+                                                                directories,
+                                                                deleteFilesInDirectories,
+                                                                deleteSubDirs) =
+        
+        task {
+            let mutable lastError = None
+            
+            let directories =
+                directories
+                |> Seq.takeWhile(fun _ -> lastError.IsNone)
+            
+            for directory in directories do
+                let! directory = directory
+            
+                match directory with
+                | Ok directory ->
+                    match directory with
+                    | Some directory ->
+                        let deleteDirectoryAsync() =
+                            task {
+                                let! res = Directory.FAEx.DeleteAsync directory
+                                                            
+                                match res with
+                                | Error(Directory.FAErr.DirectoryDeleteError.NotFound(file, ex)) ->
+                                    lastError <- Some(FileUtils.Err.DeleteDirectoriesInDirectoryError.FileNotFound(file, ex))
+                                | Error(Directory.FAErr.DirectoryDeleteError.Unknown ex) ->
+                                    lastError <- Some(FileUtils.Err.DeleteDirectoriesInDirectoryError.Unknown(ex))
+                                | Ok _ -> ()
+                            }
+                        
+                        if deleteFilesInDirectories then
+                            let! res = FileUtils.DeleteFilesInDirectoryAsync(directory)
+                            match res with
+                            | Error(FileUtils.Err.DeleteFilesInDirectoryError.DirectoryNotFound(dirPath, ex)) ->
+                                lastError <- Some(FileUtils.Err.DeleteDirectoriesInDirectoryError.DirectoryNotFound(dirPath, ex))
+                            | Error(FileUtils.Err.DeleteFilesInDirectoryError.IOError(ex)) ->
+                                lastError <- Some(FileUtils.Err.DeleteDirectoriesInDirectoryError.IOError(ex))
+                            | Error(FileUtils.Err.DeleteFilesInDirectoryError.PathTooLong(srcPath, ex)) ->
+                                lastError <- Some(FileUtils.Err.DeleteDirectoriesInDirectoryError.PathTooLong(srcPath, ex))
+                            | Error(FileUtils.Err.DeleteFilesInDirectoryError.SecurityError(srcPath, ex)) ->
+                                lastError <- Some(FileUtils.Err.DeleteDirectoriesInDirectoryError.SecurityError(srcPath, ex))
+                            | Error(FileUtils.Err.DeleteFilesInDirectoryError.UnauthorizedAccess(srcPath, ex)) ->
+                                lastError <- Some(FileUtils.Err.DeleteDirectoriesInDirectoryError.UnauthorizedAccess(srcPath, ex))
+                            | Error(FileUtils.Err.DeleteFilesInDirectoryError.FileNotFound(file, ex)) ->
+                                lastError <- Some(FileUtils.Err.DeleteDirectoriesInDirectoryError.FileNotFound(file, ex))
+                            | Error(FileUtils.Err.DeleteFilesInDirectoryError.Unknown(ex)) ->
+                                lastError <- Some(FileUtils.Err.DeleteDirectoriesInDirectoryError.Unknown(ex))
+                            | Ok _ -> 
+                                
+                                if deleteSubDirs then
+                                    let! res = FileUtils.DeleteDirectoriesInDirectoryAsync(directory,
+                                                                                           deleteFilesInDirectories,
+                                                                                           deleteSubDirs)
+                                    
+                                    match res with
+                                    | Error error -> lastError <- Some(error)
+                                    | Ok _ ->
+                                        do! deleteDirectoryAsync()
+                                else
+                                    do! deleteDirectoryAsync()
+                        else
+                            do! deleteDirectoryAsync()
+                        
+                    | None -> ()
+                        
+                | Error(Directory.FAErr.EnumerateDirectoriesError.DirectoryNotFound(ex)) ->
+                    lastError <-  Some(FileUtils.Err.DeleteDirectoriesInDirectoryError.DirectoryNotFound(srcPath, ex))
+                | Error(Directory.FAErr.EnumerateDirectoriesError.IOError(ex)) ->
+                    lastError <-  Some(FileUtils.Err.DeleteDirectoriesInDirectoryError.IOError(ex))
+                | Error(Directory.FAErr.EnumerateDirectoriesError.PathTooLong(ex)) ->
+                    lastError <-  Some(FileUtils.Err.DeleteDirectoriesInDirectoryError.PathTooLong(srcPath, ex))
+                | Error(Directory.FAErr.EnumerateDirectoriesError.SecurityError(ex)) ->
+                    lastError <-  Some(FileUtils.Err.DeleteDirectoriesInDirectoryError.SecurityError(srcPath, ex))
+                | Error(Directory.FAErr.EnumerateDirectoriesError.UnauthorizedAccess(ex)) ->
+                    lastError <-  Some(FileUtils.Err.DeleteDirectoriesInDirectoryError.UnauthorizedAccess(srcPath, ex))
+                | Error(Directory.FAErr.EnumerateDirectoriesError.Unknown(ex)) ->
+                    lastError <- Some(FileUtils.Err.DeleteDirectoriesInDirectoryError.Unknown(ex))
+            
+            match lastError with
+            | Some error -> return Error error
+            | None -> return Ok()
+        }
+    
+    static member DeleteFilesInDirectoryAsync(srcPath, pattern) =
+       FileUtils.safeDeleteFilesInDirectoryAsync(srcPath,
+                                                 Directory.FAEx.EnumerateFilesAsync(srcPath, pattern))
         
     static member DeleteFilesInDirectoryAsync(srcPath) =
-        FileUtils.DeleteFilesInDirectoryAsync(srcPath, "*")
+       FileUtils.safeDeleteFilesInDirectoryAsync(srcPath, Directory.FAEx.EnumerateFilesAsync(srcPath))
+    
+    static member DeleteDirectoriesInDirectoryAsync(srcPath, pattern, deleteFilesInDirectories, deleteSubDirs) =
+       FileUtils.safeDeleteDirectoriesInDirectoryAsync(srcPath,
+                                                       Directory.FAEx.EnumerateDirectoriesAsync(srcPath, pattern),
+                                                       deleteFilesInDirectories, deleteSubDirs)
+        
+    static member DeleteDirectoriesInDirectoryAsync(srcPath, deleteFilesInDirectories, deleteSubDirs) =
+       FileUtils.safeDeleteDirectoriesInDirectoryAsync(srcPath,
+                                                       Directory.FAEx.EnumerateDirectoriesAsync(srcPath),
+                                                       deleteFilesInDirectories,
+                                                       deleteSubDirs)
     
