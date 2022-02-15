@@ -89,9 +89,9 @@ type DeleteDirectoriesInDirectoryError =
             | IOError ex -> ex
             | Unknown(ex) -> ex
 
-let rec public DeleteDirectoriesInDirectory(srcPath, pattern, removeFilesInDirectories, includeSubDirs) =
+let rec public DeleteDirectoriesInDirectory(srcPath, pattern, deleteFilesInDirectories, deleteSubDirs) =
     let enumerationDirectoriesResult = Directory.FAEx.EnumerateDirectoriesWithBlock(srcPath, pattern, (fun dir ->
-            if removeFilesInDirectories then
+            if deleteFilesInDirectories then
                 match DeleteFilesInDirectory(dir, "*") with
                 | Error(DeleteFilesInDirectoryError.DirectoryNotFound(srcPath, ex)) ->
                     Error(DeleteDirectoriesInDirectoryError.DirectoryNotFound(srcPath, ex))
@@ -109,8 +109,8 @@ let rec public DeleteDirectoriesInDirectory(srcPath, pattern, removeFilesInDirec
                     Error(DeleteDirectoriesInDirectoryError.Unknown ex)
                 | Ok _ -> 
             
-                    if includeSubDirs then
-                        match DeleteDirectoriesInDirectory(dir, "*", removeFilesInDirectories, includeSubDirs) with
+                    if deleteSubDirs then
+                        match DeleteDirectoriesInDirectory(dir, "*", deleteFilesInDirectories, deleteSubDirs) with
                         | Error error -> Error error
                         | Ok _ ->
                             
