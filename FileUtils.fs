@@ -2,7 +2,6 @@
                 
 open System
 open System.IO
-open FAUtils
 open FAUtils.ErrorManagement
 
 [<RequireQualifiedAccess>]

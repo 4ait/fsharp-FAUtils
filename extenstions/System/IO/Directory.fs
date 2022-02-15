@@ -5,7 +5,7 @@ open System
 open System.Collections.Generic
 open System.IO
 open System.Security
-open FAUtils
+open FAUtils.Safe
 open FAUtils.Async
 open FAUtils.ErrorManagement
 open FSharp.Control

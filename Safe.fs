@@ -1,4 +1,4 @@
-﻿module FAUtils
+﻿module FAUtils.Safe
 
 open FAUtils.Async
 open System.Collections.Generic
@@ -39,8 +39,7 @@ type SafeEnumeration =
             
             let enumeration =
                 task {
-                    let! enumeration =
-                        BlockingTask.Run(enumGetter)
+                    let! enumeration = BlockingTask.Run(enumGetter)
                                          
                     match enumeration with
                     | Ok enumeration ->
