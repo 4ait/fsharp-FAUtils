@@ -52,8 +52,8 @@ let rec public DeleteFilesInDirectory(srcPath, pattern) =
     | Error(Directory.FAErr.EnumerateFilesWithBlockError.Unknown(ex)) -> Error(Unknown(ex))
     | Error(Directory.FAErr.BlockError(error)) -> 
         match error with
-            | File.FAEx.FileDeleteError.NotFound(file, ex) -> Error(FileNotFound(file, ex))
-            | File.FAEx.FileDeleteError.Unknown ex -> Error(Unknown(ex))
+            | File.FAErr.FileDeleteError.NotFound(file, ex) -> Error(FileNotFound(file, ex))
+            | File.FAErr.FileDeleteError.Unknown ex -> Error(Unknown(ex))
     | Ok _ -> Ok()
 
 type DeleteDirectoriesInDirectoryError =
