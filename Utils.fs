@@ -107,6 +107,101 @@ module FileUtils =
                     | UnauthorizedAccess(_, ex) -> ex
                     | IOError ex -> ex
                     | Unknown(ex) -> ex
+    
+    type ErrorConvertor =
+        
+        static member ToDeleteFilesInDirectoryError(res, srcPath) =
+            match res with
+            | Error(Directory.FAErr.DirectoryNotFound(ex)) ->
+                Error(Err.DeleteFilesInDirectoryError.DirectoryNotFound(srcPath, ex))
+            | Error(Directory.FAErr.IOError(ex)) ->
+                Error(Err.DeleteFilesInDirectoryError.IOError(ex))
+            | Error(Directory.FAErr.PathTooLong(ex)) ->
+                Error(Err.DeleteFilesInDirectoryError.PathTooLong(srcPath, ex))
+            | Error(Directory.FAErr.SecurityError(ex)) ->
+                Error(Err.DeleteFilesInDirectoryError.SecurityError(srcPath, ex))
+            | Error(Directory.FAErr.UnauthorizedAccess(ex)) ->
+                Error(Err.DeleteFilesInDirectoryError.UnauthorizedAccess(srcPath, ex))
+            | Error(Directory.FAErr.EnumerateFilesWithBlockError.Unknown(ex)) ->
+                Error(Err.DeleteFilesInDirectoryError.Unknown(ex))
+            | Error(Directory.FAErr.BlockError(error)) -> 
+                match error with
+                    | File.FAErr.FileDeleteError.NotFound(file, ex) ->
+                        Error(Err.DeleteFilesInDirectoryError.FileNotFound(file, ex))
+                    | File.FAErr.FileDeleteError.Unknown ex ->
+                        Error(Err.DeleteFilesInDirectoryError.Unknown(ex))
+            | Ok res -> Ok res
+        
+        static member ToDeleteDirectoriesInDirectoryError(res) =
+            match res with
+            | Error(Directory.FAErr.DirectoryDeleteError.NotFound(tempPath, ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.DirectoryNotFound(tempPath, ex))
+            | Error(Directory.FAErr.DirectoryDeleteError.Unknown ex) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.Unknown ex)
+            | Ok res -> res
+        
+        static member ToDeleteDirectoriesInDirectoryError(error) =
+            match error with
+            | Error(Directory.FAErr.DirectoryDeleteError.NotFound(tempPath, ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.DirectoryNotFound(tempPath, ex))
+            | Error(Directory.FAErr.DirectoryDeleteError.Unknown ex) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.Unknown ex)
+            | Ok res -> Ok res
+        
+        static member ToDeleteDirectoriesInDirectoryError(res, srcPath) =
+            match res with
+            | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.DirectoryNotFound(ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.DirectoryNotFound(srcPath, ex))
+            | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.IOError(ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.IOError(ex))
+            | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.PathTooLong(ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.PathTooLong(srcPath, ex))
+            | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.SecurityError(ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.SecurityError(srcPath, ex))
+            | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.UnauthorizedAccess(ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.UnauthorizedAccess(srcPath, ex))
+            | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.Unknown(ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.Unknown(ex))
+            | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.BlockError(error)) ->
+                Error error
+            | Ok res -> Ok res
+        
+        static member ToDeleteDirectoriesInDirectoryError(res) =
+            match res with
+            | Error(Err.DeleteFilesInDirectoryError.DirectoryNotFound(dirPath, ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.DirectoryNotFound(dirPath, ex))
+            | Error(Err.DeleteFilesInDirectoryError.IOError(ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.IOError(ex))
+            | Error(Err.DeleteFilesInDirectoryError.PathTooLong(srcPath, ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.PathTooLong(srcPath, ex))
+            | Error(Err.DeleteFilesInDirectoryError.SecurityError(srcPath, ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.SecurityError(srcPath, ex))
+            | Error(Err.DeleteFilesInDirectoryError.UnauthorizedAccess(srcPath, ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.UnauthorizedAccess(srcPath, ex))
+            | Error(Err.DeleteFilesInDirectoryError.FileNotFound(file, ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.FileNotFound(file, ex))
+            | Error(Err.DeleteFilesInDirectoryError.Unknown(ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.Unknown(ex))
+            | Ok res -> Ok res
+
+        static member ToDeleteDirectoriesInDirectoryError(res) =
+            match res with
+            | Error(Err.DeleteDirectoriesInDirectoryError.DirectoryNotFound(dirPath, ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.DirectoryNotFound(dirPath, ex))
+            | Error(Err.DeleteDirectoriesInDirectoryError.IOError(ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.IOError(ex))
+            | Error(Err.DeleteDirectoriesInDirectoryError.PathTooLong(srcPath, ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.PathTooLong(srcPath, ex))
+            | Error(Err.DeleteDirectoriesInDirectoryError.SecurityError(srcPath, ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.SecurityError(srcPath, ex))
+            | Error(Err.DeleteDirectoriesInDirectoryError.UnauthorizedAccess(srcPath, ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.UnauthorizedAccess(srcPath, ex))
+            | Error(Err.DeleteDirectoriesInDirectoryError.FileNotFound(file, ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.FileNotFound(file, ex))
+            | Error(Err.DeleteDirectoriesInDirectoryError.Unknown(ex)) ->
+                Error(Err.DeleteDirectoriesInDirectoryError.Unknown(ex))
+            | Ok res -> Ok res
+            
 
 type FileUtils =
     static member DeleteFilesInDirectory(srcPath, pattern) =
@@ -114,57 +209,22 @@ type FileUtils =
                 File.FAEx.Delete(file)
             ))
         
-        match enumerationFilesResult with
-        | Error(Directory.FAErr.DirectoryNotFound(ex)) ->
-            Error(FileUtils.Err.DeleteFilesInDirectoryError.DirectoryNotFound(srcPath, ex))
-        | Error(Directory.FAErr.IOError(ex)) ->
-            Error(FileUtils.Err.DeleteFilesInDirectoryError.IOError(ex))
-        | Error(Directory.FAErr.PathTooLong(ex)) ->
-            Error(FileUtils.Err.DeleteFilesInDirectoryError.PathTooLong(srcPath, ex))
-        | Error(Directory.FAErr.SecurityError(ex)) ->
-            Error(FileUtils.Err.DeleteFilesInDirectoryError.SecurityError(srcPath, ex))
-        | Error(Directory.FAErr.UnauthorizedAccess(ex)) ->
-            Error(FileUtils.Err.DeleteFilesInDirectoryError.UnauthorizedAccess(srcPath, ex))
-        | Error(Directory.FAErr.EnumerateFilesWithBlockError.Unknown(ex)) ->
-            Error(FileUtils.Err.DeleteFilesInDirectoryError.Unknown(ex))
-        | Error(Directory.FAErr.BlockError(error)) -> 
-            match error with
-                | File.FAErr.FileDeleteError.NotFound(file, ex) ->
-                    Error(FileUtils.Err.DeleteFilesInDirectoryError.FileNotFound(file, ex))
-                | File.FAErr.FileDeleteError.Unknown ex ->
-                    Error(FileUtils.Err.DeleteFilesInDirectoryError.Unknown(ex))
-        | Ok _ -> Ok()
-
+        FileUtils.ErrorConvertor.ToDeleteFilesInDirectoryError(enumerationFilesResult, srcPath)
 
 
     static member DeleteDirectoriesInDirectory(srcPath, pattern, deleteFilesInDirectories, deleteSubDirs) =
         let enumerationDirectoriesResult = Directory.FAEx.EnumerateDirectoriesWithBlock(srcPath, pattern, (fun dir ->
                 
                 let deleteDirectory() =
-                    match Directory.FAEx.Delete(dir) with
-                    | Error(Directory.FAErr.DirectoryDeleteError.NotFound(tempPath, ex)) ->
-                        Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.DirectoryNotFound(tempPath, ex))
-                    | Error(Directory.FAErr.DirectoryDeleteError.Unknown ex) ->
-                        Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.Unknown ex)
-                    | Ok _ ->
-                        Ok()
+                    let res = Directory.FAEx.Delete(dir)
+                    
+                    FileUtils.ErrorConvertor.ToDeleteDirectoriesInDirectoryError(res)
                 
                 if deleteFilesInDirectories then
-                    match FileUtils.DeleteFilesInDirectory(dir, "*") with
-                    | Error(FileUtils.Err.DeleteFilesInDirectoryError.DirectoryNotFound(srcPath, ex)) ->
-                        Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.DirectoryNotFound(srcPath, ex))
-                    | Error(FileUtils.Err.DeleteFilesInDirectoryError.IOError(ex)) ->
-                        Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.IOError(ex))
-                    | Error(FileUtils.Err.DeleteFilesInDirectoryError.PathTooLong(srcPath, ex)) ->
-                        Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.PathTooLong(srcPath, ex))
-                    | Error(FileUtils.Err.DeleteFilesInDirectoryError.SecurityError(srcPath, ex)) ->
-                        Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.SecurityError(srcPath, ex))
-                    | Error(FileUtils.Err.DeleteFilesInDirectoryError.UnauthorizedAccess(srcPath, ex)) ->
-                        Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.UnauthorizedAccess(srcPath, ex))
-                    | Error(FileUtils.Err.DeleteFilesInDirectoryError.FileNotFound(file, ex)) ->
-                        Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.FileNotFound(file, ex))
-                    | Error(FileUtils.Err.DeleteFilesInDirectoryError.Unknown ex) ->
-                        Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.Unknown ex)
+                    let res = FileUtils.DeleteFilesInDirectory(dir, "*")
+                    
+                    match FileUtils.ErrorConvertor.ToDeleteDirectoriesInDirectoryError(res) with
+                    | Error error -> Error error
                     | Ok _ -> 
                 
                         if deleteSubDirs then
@@ -178,61 +238,21 @@ type FileUtils =
                     deleteDirectory()
         ))
         
-        match enumerationDirectoriesResult with
-        | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.DirectoryNotFound(ex)) ->
-            Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.DirectoryNotFound(srcPath, ex))
-        | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.IOError(ex)) ->
-            Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.IOError(ex))
-        | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.PathTooLong(ex)) ->
-            Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.PathTooLong(srcPath, ex))
-        | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.SecurityError(ex)) ->
-            Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.SecurityError(srcPath, ex))
-        | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.UnauthorizedAccess(ex)) ->
-            Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.UnauthorizedAccess(srcPath, ex))
-        | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.Unknown(ex)) ->
-            Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.Unknown(ex))
-        | Error(Directory.FAErr.EnumerateDirectoriesWithBlockError.BlockError(error)) ->
-            Error error
-        | Ok _ -> Ok()
+        FileUtils.ErrorConvertor.ToDeleteDirectoriesInDirectoryError(enumerationDirectoriesResult, srcPath)
 
 
 
-    static member DeleteEntriesFromDirectory(srcPath, pattern) =
-        match FileUtils.DeleteFilesInDirectory(srcPath, pattern) with
-        | Error(FileUtils.Err.DeleteFilesInDirectoryError.DirectoryNotFound(dirPath, ex)) ->
-            Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.DirectoryNotFound(dirPath, ex))
-        | Error(FileUtils.Err.DeleteFilesInDirectoryError.IOError(ex)) ->
-            Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.IOError(ex))
-        | Error(FileUtils.Err.DeleteFilesInDirectoryError.PathTooLong(srcPath, ex)) ->
-            Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.PathTooLong(srcPath, ex))
-        | Error(FileUtils.Err.DeleteFilesInDirectoryError.SecurityError(srcPath, ex)) ->
-            Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.SecurityError(srcPath, ex))
-        | Error(FileUtils.Err.DeleteFilesInDirectoryError.UnauthorizedAccess(srcPath, ex)) ->
-            Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.UnauthorizedAccess(srcPath, ex))
-        | Error(FileUtils.Err.DeleteFilesInDirectoryError.FileNotFound(file, ex)) ->
-            Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.FileNotFound(file, ex))
-        | Error(FileUtils.Err.DeleteFilesInDirectoryError.Unknown(ex)) ->
-            Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.Unknown(ex))
+    (*static member DeleteEntriesFromDirectory(srcPath, pattern) =
+        let res = FileUtils.DeleteFilesInDirectory(srcPath, pattern)
+        
+        match FileUtils.ErrorConvertor.Convert(res) with
+        | Error error -> Error error
         | Ok _ ->
+            let res = FileUtils.DeleteDirectoriesInDirectory(srcPath, pattern, true, true)
             
-            match FileUtils.DeleteDirectoriesInDirectory(srcPath, pattern, true, true) with
-            | Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.DirectoryNotFound(dirPath, ex)) ->
-                Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.DirectoryNotFound(dirPath, ex))
-            | Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.IOError(ex)) ->
-                Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.IOError(ex))
-            | Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.PathTooLong(srcPath, ex)) ->
-                Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.PathTooLong(srcPath, ex))
-            | Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.SecurityError(srcPath, ex)) ->
-                Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.SecurityError(srcPath, ex))
-            | Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.UnauthorizedAccess(srcPath, ex)) ->
-                Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.UnauthorizedAccess(srcPath, ex))
-            | Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.FileNotFound(file, ex)) ->
-                Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.FileNotFound(file, ex))
-            | Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.Unknown(ex)) ->
-                Error(FileUtils.Err.DeleteDirectoriesInDirectoryError.Unknown(ex))
-            | Ok _ ->
-                
-                Ok()
+            match FileUtils.ErrorConvertor.Convert(res) with
+            | Error error -> Error error
+            | Ok _ -> Ok()*)
 
     static member private safeDeleteFilesInDirectoryAsync(srcPath, files) =
         task {
